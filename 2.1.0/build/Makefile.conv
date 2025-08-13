@@ -1,0 +1,189 @@
+# CONV 2.1.0 - Data conversion utility for MCML
+# Unified Makefile for building CONV only
+
+# Project info
+PROJECT = conv
+VERSION = 2.1.0
+SRCDIR = ../src/conv
+BINDIR = ../bin
+
+# Platform detection and cross-platform commands
+ifeq ($(OS),Windows_NT)
+	SHELL = cmd.exe
+	EXEEXT = .exe
+	MKDIR_P = if not exist "$(BINDIR)" mkdir "$(BINDIR)"
+	RM = del /Q
+	DEVNULL = NUL
+	
+	# For Windows, use gcc by default (user can override with make CC=clang or make CC=cl)
+	CC = gcc
+	ifeq ($(CC),cl)
+		CFLAGS = /EHsc /std:c17 /W3 /O2
+		LIBS = 
+		COMPILER_FOUND = cl
+	else ifeq ($(CC),clang)
+		# Clang on Windows - math functions are in the standard library
+		CFLAGS = -std=c17 -g -Wall -Wextra -O2 -fno-common
+		LIBS = 
+		COMPILER_FOUND = $(CC)
+	else
+		# For gcc and other GCC-compatible compilers
+		CFLAGS = -std=c17 -g -Wall -Wextra -O2 -fno-common
+		LIBS = -lm
+		COMPILER_FOUND = $(CC)
+	endif
+else
+	# Unix-like environment (Linux, macOS, WSL when not Windows_NT)
+	EXEEXT =
+	MKDIR_P = mkdir -p $(BINDIR)
+	RM = rm -f
+	DEVNULL = /dev/null
+	# Unix-like systems - use cc by default
+	CC = cc
+	CFLAGS = -std=c17 -g -Wall -Wextra -O2 -fno-common
+	LIBS = -lm
+	COMPILER_FOUND = $(CC)
+endif
+
+TARGET = $(BINDIR)/$(PROJECT)$(EXEEXT)
+INDENT_OPT = -br -brs -nbs -ci4 -cli0 -bli0 -l120 -ncdb -nce -nlp -npcs -npsl -i4 -nut
+
+# Source files for CONV
+SRCS = $(SRCDIR)/convconv.c $(SRCDIR)/convi.c $(SRCDIR)/conviso.c $(SRCDIR)/convlib.c $(SRCDIR)/convmain.c $(SRCDIR)/convo.c
+OBJS = convconv.o convi.o conviso.o convlib.o convmain.o convo.o
+HEADERS = $(SRCDIR)/conv.h $(SRCDIR)/convmcml.h
+
+# Default target
+all: $(BINDIR) $(TARGET) copy-samples
+	@echo Built with $(COMPILER_FOUND) compiler
+
+# Build CONV executable in bin directory
+conv: $(TARGET) copy-samples
+
+$(TARGET): $(OBJS)
+ifeq ($(CC),cl)
+	$(CC) $(CFLAGS) $(addprefix ./,$(OBJS)) /Fe$@ $(LIBS)
+else
+	$(CC) $(CFLAGS) -o $@ $(addprefix ./,$(OBJS)) $(LIBS)
+endif
+
+# Object file rules (object files stay in build folder)
+convconv.o: $(SRCDIR)/convconv.c $(HEADERS)
+ifeq ($(CC),cl)
+	$(CC) $(CFLAGS) /c $(SRCDIR)/convconv.c /Fo$@
+else
+	$(CC) $(CFLAGS) -c $(SRCDIR)/convconv.c -o $@
+endif
+
+convi.o: $(SRCDIR)/convi.c $(HEADERS)
+ifeq ($(CC),cl)
+	$(CC) $(CFLAGS) /c $(SRCDIR)/convi.c /Fo$@
+else
+	$(CC) $(CFLAGS) -c $(SRCDIR)/convi.c -o $@
+endif
+
+conviso.o: $(SRCDIR)/conviso.c $(HEADERS)
+ifeq ($(CC),cl)
+	$(CC) $(CFLAGS) /c $(SRCDIR)/conviso.c /Fo$@
+else
+	$(CC) $(CFLAGS) -c $(SRCDIR)/conviso.c -o $@
+endif
+
+convlib.o: $(SRCDIR)/convlib.c $(HEADERS)
+ifeq ($(CC),cl)
+	$(CC) $(CFLAGS) /c $(SRCDIR)/convlib.c /Fo$@
+else
+	$(CC) $(CFLAGS) -c $(SRCDIR)/convlib.c -o $@
+endif
+
+convmain.o: $(SRCDIR)/convmain.c $(HEADERS)
+ifeq ($(CC),cl)
+	$(CC) $(CFLAGS) /c $(SRCDIR)/convmain.c /Fo$@
+else
+	$(CC) $(CFLAGS) -c $(SRCDIR)/convmain.c -o $@
+endif
+
+convo.o: $(SRCDIR)/convo.c $(HEADERS)
+ifeq ($(CC),cl)
+	$(CC) $(CFLAGS) /c $(SRCDIR)/convo.c /Fo$@
+else
+	$(CC) $(CFLAGS) -c $(SRCDIR)/convo.c -o $@
+endif
+
+# Copy sample files to bin directory
+copy-samples: $(BINDIR)
+ifeq ($(OS),Windows_NT)
+	@echo Copying sample files to bin directory...
+	@if exist "$(SRCDIR)\..\..\sample" ( \
+		if not exist "$(BINDIR)\sample" mkdir "$(BINDIR)\sample" && \
+		xcopy /E /Y "$(SRCDIR)\..\..\sample\*" "$(BINDIR)\sample\" >$(DEVNULL) 2>&1 \
+	) else ( \
+		echo Warning: sample directory not found \
+	)
+else
+	@echo Copying sample files to bin directory...
+	@if [ -d "$(SRCDIR)/../../sample" ]; then \
+		mkdir -p "$(BINDIR)/sample" && \
+		cp -r "$(SRCDIR)/../../sample/"* "$(BINDIR)/sample/" 2>$(DEVNULL) || true; \
+	else \
+		echo Warning: sample directory not found; \
+	fi
+endif
+
+# Test with sample input files (if any exist for CONV)
+test: $(TARGET)
+	@echo Testing CONV 2.1.0...
+ifeq ($(OS),Windows_NT)
+	@if not exist "test" mkdir "test"
+	@echo Running: $(PROJECT)$(EXEEXT) with sample2.mco...
+	@if exist "test/sample2.rat" ( \
+		cmd /c "cd $(BINDIR) && (echo i && echo sample/sample2.mco && echo r && echo ../build/test/sample2.rat && echo w && echo q && echo y) | $(PROJECT)$(EXEEXT) >nul 2>&1" \
+	) else ( \
+		cmd /c "cd $(BINDIR) && (echo i && echo sample/sample2.mco && echo r && echo ../build/test/sample2.rat && echo q && echo y) | $(PROJECT)$(EXEEXT) >nul 2>&1" \
+	)
+else
+	@mkdir -p test
+	@echo Running: $(PROJECT)$(EXEEXT) with sample2.mco...
+	@if [ -f "test/sample2.rat" ]; then \
+		cd $(BINDIR) && (echo "i"; echo "sample/sample2.mco"; echo "r"; echo "../build/test/sample2.rat"; echo "w"; echo "q"; echo "y") | ./$(PROJECT)$(EXEEXT) >/dev/null 2>&1; \
+	else \
+		cd $(BINDIR) && (echo "i"; echo "sample/sample2.mco"; echo "r"; echo "../build/test/sample2.rat"; echo "q"; echo "y") | ./$(PROJECT)$(EXEEXT) >/dev/null 2>&1; \
+	fi
+endif
+	@echo CONV test completed successfully.
+
+$(BINDIR):
+	$(MKDIR_P)
+
+clean:
+	$(RM) $(OBJS)
+	$(RM) *.mco
+ifeq ($(OS),Windows_NT)
+	@if exist "test" rmdir /S /Q "test" >$(DEVNULL) 2>&1 || echo.
+else
+	@rm -rf test 2>$(DEVNULL) || true
+endif
+
+realclean: clean
+ifeq ($(OS),Windows_NT)
+	@if exist "$(TARGET)" del /Q "$(TARGET)" >$(DEVNULL) 2>&1 || echo.
+	@if exist "$(BINDIR)\sample" rmdir /S /Q "$(BINDIR)\sample" >$(DEVNULL) 2>&1 || echo.
+else
+	$(RM) $(TARGET)
+	@rm -rf "$(BINDIR)/sample" 2>$(DEVNULL) || true
+endif
+	$(RM) *.mco
+
+# Help target
+help:
+	@echo CONV $(VERSION) Build System
+	@echo Available targets:
+	@echo   all         - Build CONV (default)
+	@echo   conv        - Build CONV executable
+	@echo   test        - Build and test CONV
+	@echo   clean       - Remove object files, test directory, and output
+	@echo   realclean   - Remove all generated files
+	@echo   help        - Show this help message
+
+# Phony targets
+.PHONY: all conv clean realclean test help copy-samples

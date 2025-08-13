@@ -1,0 +1,163 @@
+# MCML 2.1.0 - Monte Carlo Multi-Layered simulation
+# Unified Makefile for building MCML only
+
+# Project info
+PROJECT = mcml
+VERSION = 2.1.0
+SRCDIR = ../src/mcml
+BINDIR = ../bin
+
+# Platform detection and cross-platform commands
+ifeq ($(OS),Windows_NT)
+	SHELL = cmd.exe
+	EXEEXT = .exe
+	MKDIR_P = if not exist "$(BINDIR)" mkdir "$(BINDIR)"
+	RM = del /Q
+	DEVNULL = NUL
+	
+	# For Windows, use gcc by default (user can override with make CC=clang or make CC=cl)
+	CC = gcc
+	ifeq ($(CC),cl)
+		CFLAGS = /EHsc /std:c17 /W3 /O2
+		LIBS = 
+		COMPILER_FOUND = cl
+	else
+		# For gcc, clang, and other GCC-compatible compilers
+		CFLAGS = -std=c17 -g -Wall -Wextra -O2 -fno-common
+		LIBS = -lm
+		COMPILER_FOUND = $(CC)
+	endif
+else
+	# Unix-like environment (Linux, macOS, WSL when not Windows_NT)
+	EXEEXT =
+	MKDIR_P = mkdir -p $(BINDIR)
+	RM = rm -f
+	DEVNULL = /dev/null
+	# Unix-like systems - use cc by default
+	CC = cc
+	CFLAGS = -std=c17 -g -Wall -Wextra -O2 -fno-common
+	LIBS = -lm
+	COMPILER_FOUND = $(CC)
+endif
+
+TARGET = $(BINDIR)/$(PROJECT)$(EXEEXT)
+INDENT_OPT = -br -brs -nbs -ci4 -cli0 -bli0 -l120 -ncdb -nce -nlp -npcs -npsl -i4 -nut
+
+# Source files from the new modernized code
+SRCS = $(SRCDIR)/mcmlgo.c $(SRCDIR)/mcmlio.c $(SRCDIR)/mcmlmain.c
+OBJS = mcmlgo.o mcmlio.o mcmlmain.o
+HEADERS = $(SRCDIR)/mcml.h
+
+# Default target
+all: $(BINDIR) $(TARGET) copy-samples
+	@echo Built with $(COMPILER_FOUND) compiler
+
+# Build MCML executable in bin directory
+mcml: $(TARGET) copy-samples
+
+$(TARGET): $(OBJS)
+ifeq ($(CC),cl)
+	$(CC) $(CFLAGS) $(addprefix ./,$(OBJS)) /Fe$@ $(LIBS)
+else
+	$(CC) $(CFLAGS) -o $@ $(addprefix ./,$(OBJS)) $(LIBS)
+endif
+
+# Object file rules (object files stay in build folder)
+mcmlgo.o: $(SRCDIR)/mcmlgo.c $(HEADERS)
+ifeq ($(CC),cl)
+	$(CC) $(CFLAGS) /c $(SRCDIR)/mcmlgo.c /Fo$@
+else
+	$(CC) $(CFLAGS) -c $(SRCDIR)/mcmlgo.c -o $@
+endif
+
+mcmlio.o: $(SRCDIR)/mcmlio.c $(HEADERS)
+ifeq ($(CC),cl)
+	$(CC) $(CFLAGS) /c $(SRCDIR)/mcmlio.c /Fo$@
+else
+	$(CC) $(CFLAGS) -c $(SRCDIR)/mcmlio.c -o $@
+endif
+
+mcmlmain.o: $(SRCDIR)/mcmlmain.c $(HEADERS)
+ifeq ($(CC),cl)
+	$(CC) $(CFLAGS) /c $(SRCDIR)/mcmlmain.c /Fo$@
+else
+	$(CC) $(CFLAGS) -c $(SRCDIR)/mcmlmain.c -o $@
+endif
+
+# Test with sample input files
+test: $(TARGET)
+	@echo Testing MCML 2.1.0...
+ifeq ($(OS),Windows_NT)
+	@if not exist "test" mkdir "test"
+	@echo Running: $(PROJECT)$(EXEEXT) sample/template.mci
+	@cd $(BINDIR) && $(PROJECT)$(EXEEXT) sample/template.mci && move *.mco ../build/test/ >$(DEVNULL) 2>&1 || echo.
+	@echo Running: $(PROJECT)$(EXEEXT) sample/sample1.mci
+	@cd $(BINDIR) && $(PROJECT)$(EXEEXT) sample/sample1.mci && move *.mco ../build/test/ >$(DEVNULL) 2>&1 || echo.
+	@echo Running: $(PROJECT)$(EXEEXT) sample/sample2.mci
+	@cd $(BINDIR) && $(PROJECT)$(EXEEXT) sample/sample2.mci && move *.mco ../build/test/ >$(DEVNULL) 2>&1 || echo.
+else
+	@mkdir -p test
+	@echo Running: $(PROJECT)$(EXEEXT) sample/template.mci
+	@cd $(BINDIR) && ./$(PROJECT)$(EXEEXT) sample/template.mci && mv *.mco ../build/test/ 2>$(DEVNULL) || true
+	@echo Running: $(PROJECT)$(EXEEXT) sample/sample1.mci
+	@cd $(BINDIR) && ./$(PROJECT)$(EXEEXT) sample/sample1.mci && mv *.mco ../build/test/ 2>$(DEVNULL) || true
+	@echo Running: $(PROJECT)$(EXEEXT) sample/sample2.mci
+	@cd $(BINDIR) && ./$(PROJECT)$(EXEEXT) sample/sample2.mci && mv *.mco ../build/test/ 2>$(DEVNULL) || true
+endif
+	@echo MCML test completed. Output files saved to test/
+
+# Copy sample files to bin directory
+copy-samples: $(BINDIR)
+ifeq ($(OS),Windows_NT)
+	@echo Copying sample files to bin directory...
+	@if exist "$(SRCDIR)\..\sample" ( \
+		if not exist "$(BINDIR)\sample" mkdir "$(BINDIR)\sample" && \
+		xcopy /E /Y "$(SRCDIR)\..\sample\*" "$(BINDIR)\sample\" >$(DEVNULL) 2>&1 \
+	) else ( \
+		echo Warning: sample directory not found \
+	)
+else
+	@echo Copying sample files to bin directory...
+	@if [ -d "$(SRCDIR)/../sample" ]; then \
+		mkdir -p "$(BINDIR)/sample" && \
+		cp -r "$(SRCDIR)/../sample/"* "$(BINDIR)/sample/" 2>$(DEVNULL) || true; \
+	else \
+		echo Warning: sample directory not found; \
+	fi
+endif
+
+$(BINDIR):
+	$(MKDIR_P)
+
+clean:
+	$(RM) $(OBJS)
+	$(RM) *.mco
+ifeq ($(OS),Windows_NT)
+	@if exist "test" rmdir /S /Q "test" >$(DEVNULL) 2>&1 || echo.
+else
+	@rm -rf test 2>$(DEVNULL) || true
+endif
+
+realclean: clean
+ifeq ($(OS),Windows_NT)
+	@if exist "$(TARGET)" del /Q "$(TARGET)" >$(DEVNULL) 2>&1 || echo.
+	@if exist "$(BINDIR)\sample" rmdir /S /Q "$(BINDIR)\sample" >$(DEVNULL) 2>&1 || echo.
+else
+	$(RM) $(TARGET)
+	@rm -rf "$(BINDIR)/sample" 2>$(DEVNULL) || true
+endif
+	$(RM) *.mco
+
+# Help target
+help:
+	@echo MCML $(VERSION) Build System
+	@echo Available targets:
+	@echo   all         - Build MCML and copy samples (default)
+	@echo   mcml        - Build MCML executable and copy samples
+	@echo   test        - Build and test with sample files in build/test/
+	@echo   clean       - Remove object files, test directory, and output
+	@echo   realclean   - Remove all generated files including samples
+	@echo   help        - Show this help message
+
+# Phony targets
+.PHONY: all mcml clean realclean test help copy-samples
