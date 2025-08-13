@@ -1,0 +1,85 @@
+################################################################################
+# Input file for Monte Carlo simulation MCML - Monte Carlo for Multi-Layers.
+# Anything in a line after "#" is ignored as comments.
+# Space lines are also ignored.
+# Lengths are in cm; and mua and mus are in 1/cm. Time is in ps.
+# Use 8-space tab stops.
+#
+# Data catagories: 
+#	Rd_r	Rd_a	Rd_ra	Rd_t	Rd_rt	Rd_at	Rd_rat
+#	Td_r	Td_a	Td_ra	Td_t	Td_rt	Td_at	Td_rat
+#	A_z	A_rz	A_t	A_zt	A_rzt
+#
+################################################################################
+
+
+# File version
+mcmli_3.0
+
+#########
+# Media #
+#########
+
+# name			eta		mu_a	mu_s		g
+  air			1.00	0.00	  0.00		0.00
+  water			1.33	0.00	  0.00		0.00
+  tissue_1		1.30	5.00	100.00		0.70
+  tissue_2		1.40	2.00	 10.00		0.00
+  tissue_3		1.37	1.00	250.00		0.95
+end #of media
+
+################################################################################
+# Run parameters #
+##################
+
+# Output file	ASCII/Binary
+test1.mco		A
+
+##########
+# Layers #
+##########
+
+# Medium		Thickness
+  air
+  tissue_1		0.1 
+  tissue_2		0.2
+  air
+end #of layers
+
+#########
+# Light #
+#########
+
+# Type: pencil/isotropic
+pencil
+
+# Source z position
+0
+
+#########
+# Grids #
+#########
+
+#	step_z	step_r	step_t
+	0.1		0.1		0.1
+
+#	num_z	num_r	num_t	num_a
+	3		3		3		4
+
+# Scored data categories 
+A_z A_t T_r T_a T_t R_r R_a R_t
+
+######################
+# Simulation control #
+######################
+
+# Photons	Time limit
+10000		1:59
+
+# Weight threshold
+0.0001
+
+# Random number seed
+1
+
+end #of all runs

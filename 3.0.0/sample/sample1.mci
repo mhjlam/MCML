@@ -1,0 +1,140 @@
+################################################################################
+# Input file for Monte Carlo simulation MCML - Monte Carlo for Multi-Layers.
+# Anything in a line after "#" is ignored as comments.
+# Space lines are also ignored.
+# Lengths are in cm; and mua and mus are in 1/cm. Time is in ps.
+# Use 8-space tab stops.
+#
+# Data catagories: 
+#	R_r		R_a		R_ra	R_t		R_rt	R_at	R_rat
+#	T_r		T_a		T_ra	T_t		T_rt	T_at	T_rat
+#	A_z		A_rz	A_t		A_zt	A_rzt
+#
+#
+# SAMPLE 1
+# Total diffuse reflectance and total transmittance
+#
+################################################################################
+
+# File version
+mcmli_3.0
+
+#########
+# Media #
+#########
+
+# Name			n		mua		mus		g
+  air			1.0		0		0		0.00
+  matched		1.0		10		90		0.75
+  mismatched	1.5		10		90		0.00
+end #of media
+
+################################################################################
+# Run 1 #
+#########
+
+# Output file	ASCII/Binary
+sample1a.mco	A
+
+##########
+# Layers #
+##########
+
+# Medium		Thickness
+  air
+  matched		0.02
+  air
+end #of layers
+
+#########
+# Light #
+#########
+
+# Type: pencil/isotropic
+pencil
+
+# Source z position
+0
+
+#########
+# Grids #
+#########
+
+#	step_z	step_r	step_t
+	0.1		0.1		0.1
+
+#	num_z	num_r	num_t	num_a
+	1		1		1		30
+
+# Scored data categories 
+R_a
+
+######################
+# Simulation Control #
+######################
+
+# photons	time
+1000000		2:00
+
+# Weight threshold
+0.0001
+
+# Random number seed
+1
+
+# end of run 1
+
+################################################################################
+# Run 2 #
+#########
+
+# Output file	ASCII/Binary
+sample1b.mco	A
+
+##########
+# Layers #
+##########
+
+# medium		thickness
+  air
+  mismatched	100000000
+  air
+end #of layers
+
+#########
+# Light #
+#########
+
+# Type: pencil/isotropic
+pencil
+
+# Starting z position
+0
+
+#########
+# Grids #
+#########
+
+#	step_z	step_r	step_t
+	0.002	0.002	0.1
+
+#	num_z	num_r	num_t	num_a
+	50		50		1		1
+
+# scored data categories 
+R_r A_z
+
+######################
+# Simulation Control #
+######################
+
+# photons
+100000
+
+# threshold weight
+0.0001
+
+# random number seed
+1
+
+end #of all runs
