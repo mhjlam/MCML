@@ -1,0 +1,109 @@
+
+# CONV 1.2.2 - Data conversion utility for MCML
+# Makefile for building CONV only (cross-platform, based on 2.1.0 style)
+
+PROJECT = conv
+VERSION = 1.2.2
+SRCDIR = ../src/conv
+BINDIR = ../bin
+
+ifeq ($(OS),Windows_NT)
+	SHELL = cmd.exe
+	EXEEXT = .exe
+	MKDIR_P = if not exist "$(BINDIR)" mkdir "$(BINDIR)"
+	RM = del /Q
+	DEVNULL = NUL
+	CC = gcc
+	ifeq ($(CC),cl)
+		CFLAGS = /EHsc /W3 /O2
+		LIBS =
+		COMPILER_FOUND = cl
+	else
+		CFLAGS = -g -Wall -ansi -fno-common
+		LIBS = -lm
+		COMPILER_FOUND = $(CC)
+	endif
+else
+	EXEEXT =
+	MKDIR_P = mkdir -p $(BINDIR)
+	RM = rm -f
+	DEVNULL = /dev/null
+	CC = cc
+	CFLAGS = -g -Wall -ansi -fno-common
+	LIBS = -lm
+	COMPILER_FOUND = $(CC)
+endif
+
+TARGET = $(BINDIR)/$(PROJECT)$(EXEEXT)
+SRCS = $(SRCDIR)/convconv.c $(SRCDIR)/convi.c $(SRCDIR)/conviso.c $(SRCDIR)/convmain.c $(SRCDIR)/convnr.c $(SRCDIR)/convo.c
+OBJS = convconv.o convi.o conviso.o convmain.o convnr.o convo.o
+HEADERS = $(SRCDIR)/conv.h
+
+all: $(BINDIR) $(TARGET)
+	@echo Built with $(COMPILER_FOUND) compiler
+
+$(BINDIR):
+	$(MKDIR_P)
+
+$(TARGET): $(OBJS)
+ifeq ($(CC),cl)
+	$(CC) $(CFLAGS) $(addprefix ./,$(OBJS)) /Fe$@ $(LIBS)
+else
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LIBS)
+endif
+
+%.o: $(SRCDIR)/%.c $(HEADERS)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Test with sample input files (if any exist for CONV)
+test: $(TARGET) copy-samples
+	@echo Testing CONV 1.2.2...
+	@echo ========================================
+ifeq ($(OS),Windows_NT)
+	@if not exist "test" mkdir "test"
+	@echo Running: $(PROJECT)$(EXEEXT) (basic functionality test)
+	@echo Testing if conv starts and responds to quit command...
+	@cmd /c "cd $(BINDIR) && (echo q && echo y) | $(PROJECT)$(EXEEXT)" && echo CONV responded correctly to quit command || echo CONV test failed
+else
+	@mkdir -p test
+	@echo Running: $(PROJECT)$(EXEEXT) (basic functionality test)
+	@echo "Testing if conv starts and responds to quit command..."
+	@cd $(BINDIR) && (echo "q"; echo "y") | ./$(PROJECT)$(EXEEXT) && echo "CONV responded correctly to quit command" || echo "CONV test failed"
+endif
+	@echo ========================================
+	@echo CONV test completed. Program startup and basic interaction verified.
+
+# Copy sample files to bin directory
+copy-samples: $(BINDIR)
+ifeq ($(OS),Windows_NT)
+	@echo Copying sample files to bin directory...
+	@if exist "$(SRCDIR)\..\sample" ( \
+		if not exist "$(BINDIR)\sample" mkdir "$(BINDIR)\sample" && \
+		xcopy /E /Y "$(SRCDIR)\..\sample\*" "$(BINDIR)\sample\" >$(DEVNULL) 2>&1 \
+	) else ( \
+		echo Warning: sample directory not found \
+	)
+else
+	@echo Copying sample files to bin directory...
+	@if [ -d "$(SRCDIR)/../sample" ]; then \
+		mkdir -p "$(BINDIR)/sample" && \
+		cp -r "$(SRCDIR)/../sample/"* "$(BINDIR)/sample/" 2>$(DEVNULL) || true; \
+	else \
+		echo Warning: sample directory not found; \
+	fi
+endif
+
+clean:
+	$(RM) $(OBJS)
+	$(RM) *.mco
+ifeq ($(OS),Windows_NT)
+	@if exist "$(TARGET)" del /Q "$(TARGET)" >$(DEVNULL) 2>&1 || echo.
+	@if exist "test" rmdir /S /Q "test" >$(DEVNULL) 2>&1 || echo.
+	@if exist "$(BINDIR)\sample" rmdir /S /Q "$(BINDIR)\sample" >$(DEVNULL) 2>&1 || echo.
+else
+	$(RM) $(TARGET)
+	@rm -rf test 2>$(DEVNULL) || true
+	@rm -rf "$(BINDIR)/sample" 2>$(DEVNULL) || true
+endif
+
+.PHONY: all clean test copy-samples

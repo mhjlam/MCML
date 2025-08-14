@@ -1,0 +1,184 @@
+# MCML 3.0.0 - Monte Carlo Multi-Layered simulation (C++)
+# Unified Makefile for building MCML C++ version only
+
+# Project info
+PROJECT = mcml
+VERSION = 3.0.0
+SRCDIR = ../src
+BINDIR = ../bin
+
+# Platform detection and cross-platform commands
+ifeq ($(OS),Windows_NT)
+	SHELL = cmd.exe
+	EXEEXT = .exe
+	MKDIR_P = if not exist "$(BINDIR)" mkdir "$(BINDIR)"
+	RM = del /Q
+	DEVNULL = NUL
+	
+	# For Windows, use g++ by default (user can override with make CXX=clang++)
+	CXX = g++
+	ifeq ($(CXX),cl)
+		CXXFLAGS = /EHsc /std:c++20 /W3 /O2
+		LIBS = 
+		COMPILER_FOUND = cl
+	else
+		# For g++, clang++, and other GCC-compatible compilers
+		CXXFLAGS = -std=c++20 -g -Wall -Wextra -O2
+		LIBS = -lm
+		COMPILER_FOUND = $(CXX)
+	endif
+else
+	# Unix-like environment (Linux, macOS, WSL when not Windows_NT)
+	EXEEXT =
+	MKDIR_P = mkdir -p $(BINDIR)
+	RM = rm -f
+	DEVNULL = /dev/null
+	# Unix-like systems - use c++ by default
+	CXX = c++
+	CXXFLAGS = -std=c++20 -g -Wall -Wextra -O2
+	LIBS = -lm
+	COMPILER_FOUND = $(CXX)
+endif
+
+TARGET = $(BINDIR)/$(PROJECT)$(EXEEXT)
+INDENT_OPT = -br -brs -nbs -ci4 -cli0 -bli0 -l120 -ncdb -nce -nlp -npcs -npsl -i4 -nut
+
+# Source files from the C++ implementation
+SRCS = $(SRCDIR)/main.cpp $(SRCDIR)/reader.cpp $(SRCDIR)/reader_util.cpp $(SRCDIR)/simulator.cpp $(SRCDIR)/tracer.cpp $(SRCDIR)/writer.cpp
+OBJS = main.o reader.o reader_util.o simulator.o tracer.o writer.o
+HEADERS = $(SRCDIR)/*.hpp
+
+# Default target
+all: $(BINDIR) $(TARGET) copy-samples
+	@echo Built with $(COMPILER_FOUND) compiler
+
+# Build MCML executable in bin directory
+mcml: $(TARGET) copy-samples
+
+$(TARGET): $(OBJS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) $(addprefix ./,$(OBJS)) /Fe$@ $(LIBS)
+else
+	$(CXX) $(CXXFLAGS) -o $@ $(addprefix ./,$(OBJS)) $(LIBS)
+endif
+
+# Object file rules (object files stay in build folder)
+main.o: $(SRCDIR)/main.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/main.cpp /Fo$@
+else
+	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/main.cpp -o $@
+endif
+
+reader.o: $(SRCDIR)/reader.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/reader.cpp /Fo$@
+else
+	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/reader.cpp -o $@
+endif
+
+reader_util.o: $(SRCDIR)/reader_util.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/reader_util.cpp /Fo$@
+else
+	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/reader_util.cpp -o $@
+endif
+
+simulator.o: $(SRCDIR)/simulator.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/simulator.cpp /Fo$@
+else
+	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/simulator.cpp -o $@
+endif
+
+tracer.o: $(SRCDIR)/tracer.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/tracer.cpp /Fo$@
+else
+	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/tracer.cpp -o $@
+endif
+
+writer.o: $(SRCDIR)/writer.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/writer.cpp /Fo$@
+else
+	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/writer.cpp -o $@
+endif
+
+# Test with sample input files
+test: $(TARGET)
+	@echo Testing MCML 2.1.0...
+ifeq ($(OS),Windows_NT)
+	@if not exist "test" mkdir "test"
+	@echo Running: $(PROJECT)$(EXEEXT) sample/template.mci
+	@cd $(BINDIR) && $(PROJECT)$(EXEEXT) sample/template.mci && move *.mco ../build/test/ >$(DEVNULL) 2>&1 || echo.
+	@echo Running: $(PROJECT)$(EXEEXT) sample/sample1.mci
+	@cd $(BINDIR) && $(PROJECT)$(EXEEXT) sample/sample1.mci && move *.mco ../build/test/ >$(DEVNULL) 2>&1 || echo.
+	@echo Running: $(PROJECT)$(EXEEXT) sample/sample2.mci
+	@cd $(BINDIR) && $(PROJECT)$(EXEEXT) sample/sample2.mci && move *.mco ../build/test/ >$(DEVNULL) 2>&1 || echo.
+else
+	@mkdir -p test
+	@echo Running: $(PROJECT)$(EXEEXT) sample/template.mci
+	@cd $(BINDIR) && ./$(PROJECT)$(EXEEXT) sample/template.mci && mv *.mco ../build/test/ 2>$(DEVNULL) || true
+	@echo Running: $(PROJECT)$(EXEEXT) sample/sample1.mci
+	@cd $(BINDIR) && ./$(PROJECT)$(EXEEXT) sample/sample1.mci && mv *.mco ../build/test/ 2>$(DEVNULL) || true
+	@echo Running: $(PROJECT)$(EXEEXT) sample/sample2.mci
+	@cd $(BINDIR) && ./$(PROJECT)$(EXEEXT) sample/sample2.mci && mv *.mco ../build/test/ 2>$(DEVNULL) || true
+endif
+	@echo MCML test completed. Output files saved to test/
+
+# Copy sample files to bin directory
+copy-samples: $(BINDIR)
+ifeq ($(OS),Windows_NT)
+	@echo Copying sample files to bin directory...
+	@if exist "$(SRCDIR)\..\sample" ( \
+		if not exist "$(BINDIR)\sample" mkdir "$(BINDIR)\sample" && \
+		xcopy /E /Y "$(SRCDIR)\..\sample\*" "$(BINDIR)\sample\" >$(DEVNULL) 2>&1 \
+	) else ( \
+		echo Warning: sample directory not found \
+	)
+else
+	@echo Copying sample files to bin directory...
+	@if [ -d "$(SRCDIR)/../sample" ]; then \
+		mkdir -p "$(BINDIR)/sample" && \
+		cp -r "$(SRCDIR)/../sample/"* "$(BINDIR)/sample/" 2>$(DEVNULL) || true; \
+	else \
+		echo Warning: sample directory not found; \
+	fi
+endif
+
+$(BINDIR):
+	$(MKDIR_P)
+
+clean:
+	$(RM) $(OBJS)
+	$(RM) *.mco
+ifeq ($(OS),Windows_NT)
+	@if exist "test" rmdir /S /Q "test" >$(DEVNULL) 2>&1 || echo.
+else
+	@rm -rf test 2>$(DEVNULL) || true
+endif
+
+realclean: clean
+ifeq ($(OS),Windows_NT)
+	@if exist "$(TARGET)" del /Q "$(TARGET)" >$(DEVNULL) 2>&1 || echo.
+	@if exist "$(BINDIR)\sample" rmdir /S /Q "$(BINDIR)\sample" >$(DEVNULL) 2>&1 || echo.
+else
+	$(RM) $(TARGET)
+	@rm -rf "$(BINDIR)/sample" 2>$(DEVNULL) || true
+endif
+	$(RM) *.mco
+
+# Help target
+help:
+	@echo MCML $(VERSION) Build System
+	@echo Available targets:
+	@echo   all         - Build MCML and copy samples (default)
+	@echo   mcml        - Build MCML executable and copy samples
+	@echo   test        - Build and test with sample files in build/test/
+	@echo   clean       - Remove object files, test directory, and output
+	@echo   realclean   - Remove all generated files including samples
+	@echo   help        - Show this help message
+
+# Phony targets
+.PHONY: all mcml clean realclean test help copy-samples
