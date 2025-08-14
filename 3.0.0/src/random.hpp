@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include <sstream>
+#include <iterator>
 
 
 // Random number generator

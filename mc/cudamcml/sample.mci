@@ -1,0 +1,25 @@
+##########################################
+# Sample.mci
+# 	A template for input files for MCML.
+#	Any characters following a # are ignored as comments
+#	Space lines are also ignored.
+#	Lengths are in cm, mua and mus are in 1/cm.
+#
+#	Multiple runs may be stipulated.
+##########################################
+
+1.0                      	# file version
+1                        	# number of runs
+
+#### SPECIFY DATA FOR RUN 1
+#InParm                    	# Input parameters. cm is used.
+sample.mco 	A	      	# output file name, ASCII.
+10000000                  	# No. of photons
+0.01	0.01               	# dz, dr [cm]
+200	500	1                	# No. of dz, dr, da.
+
+1                        	# Number of layers
+#n	mua	mus	g	d         	# One line for each layer
+1                         	# n for medium above
+1.4	0.1	90	0.9	100    	# layer 1
+1                        	# n for medium below

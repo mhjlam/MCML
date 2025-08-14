@@ -1,0 +1,93 @@
+# MCML Project - Combined .gitignore
+
+# Compiled executables
+*.exe
+*.out
+*.app
+
+# Object files
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+
+# Static libraries
+*.a
+*.lib
+
+# Debug files
+*.pdb
+*.ilk
+*.dSYM/
+
+# CUDA specific files
+*.cubin
+*.fatbin
+*.ptx
+
+# Build directories
+bin/
+build/
+obj/
+Debug/
+Release/
+x64/
+x86/
+
+# IDE files
+.vs/
+.vscode/
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.user
+*.ncb
+*.aps
+*.plg
+*.opt
+*.clw
+*.positions
+
+# Makefiles (generated)
+Makefile.bak
+
+# Temporary files
+*.tmp
+*.temp
+*~
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Test output files
+*.mco
+*.mct
+*.dat
+mc/cudamc/outp.txt
+
+# Backup files
+*.bak
+*~
+
+# MATLAB specific (for mcxyz and mcfluor)
+*.asv
+*.m~
+
+# Documentation builds
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Custom
+3.0.0/src/backup
