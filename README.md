@@ -1,14 +1,12 @@
 # MCML
 
-Monte Carlo simulation of light transport in multi-layered turbid media
+Monte Carlo simulation of light transport in multi-layered turbid media.
 
-## Overview
+## Version History
 
 This project contains multiple versions of MCML (Monte Carlo Multi-Layered) and CONV (convolution program).
 
-## Versions
-
-The MCML and CONV programs have a complex version history spanning over 30 years. Due to poor version management practices, the lineage is fragmented across multiple repositories and maintainers.
+The MCML and CONV programs have a complex version history spanning over 30 years. Due to poor version management practices, the lineage is fragmented across multiple repositories and maintainers. I have tried to reconstruct and accumulate the existing software as best to my knowledge, and made new contributions.
 
 ### 1.0 - 1.1
 
@@ -32,14 +30,14 @@ The MCML and CONV programs have a complex version history spanning over 30 years
 
 ### 1.2.2
 
-- **Date**: 2000
+- **Date**: 1996-2000
 - **Author**: Lihong Wang
 - **Source**: <https://github.com/lhvwang/MCML>
 - **Changes**: Fix bugs introduced in 1.2.1
 
 ### 2.0
 
-- **Date**: 1992-1996
+- **Date**: 1996
 - **Author**: Lihong Wang and Liqiong Zheng
 - **Source**: <https://github.com/lhvwang/MCML>
 - **Changes**: Add interactive parameter input, multiple scoring, time-resolved simulation, adjustable/isotropic sources, simulation time control, standard error computation, continuation runs
@@ -121,9 +119,9 @@ This repository also includes several standalone Monte Carlo projects that are r
 - `time_mc` - Simulates the time resolved backscattering of a semi-infinite medium with anisotropic scattering (by Scott Prahl).
 - `trmc` - Simple time-resolved Monte Carlo (by Steven L. Jacques, 1998).
 - `mc321` - Simple steady-state Monte Carlo in spherical, cylindrical and planar coordinates (by Steven L. Jacques, 2017).
-- `mcsubLIB` - A Monte Carlo subroutine written in C to be used as a building block for specialized applications, and with MATLAB integration (by Steven L. Jacques, 2010).
+- `mcsubLIB` - A small Monte Carlo subroutine library that can be used in other programs, and has MATLAB integration (by Steven L. Jacques, 2010).
 
-### Specialized Monte Carlo Programs
+### Advanced Monte Carlo Programs
 
 #### **mcxyz** - 3D Monte Carlo
 

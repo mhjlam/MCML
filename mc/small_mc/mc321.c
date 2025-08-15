@@ -1,369 +1,354 @@
-
-/********************************************
- *  mc321.c    , in ANSI Standard C programing language
+/*******************************************************************************
+ *  mc321.c
  *
- *  Monte Carlo simulation yielding spherical, cylindrical, and planar 
- *    responses to an isotropic point source in an infinite homogeneous 
- *    medium with no boundaries. This program is a minimal Monte Carlo 
- *    program scoring photon distributions in spherical, cylindrical, 
+ *  Monte Carlo simulation yielding spherical, cylindrical, and planar
+ *    responses to an isotropic point source in an infinite homogeneous
+ *    medium with no boundaries. This program is a minimal Monte Carlo
+ *    program scoring photon distributions in spherical, cylindrical,
  *    and planar shells.
  *
- *  by Steven L. Jacques based on prior collaborative work 
+ *  by Steven L. Jacques based on prior collaborative work
  *    with Lihong Wang, Scott Prahl, and Marleen Keijzer.
- *    partially funded by the NIH (R29-HL45045, 1991-1997) and  
+ *    partially funded by the NIH (R29-HL45045, 1991-1997) and
  *    the DOE (DE-FG05-91ER617226, DE-FG03-95ER61971, 1991-1999).
  *
  *  A published report illustrates use of the program:
- *    S. L. Jacques: "Light distributions from point, line, and plane 
- *    sources for photochemical reactions and fluorescence in turbid 
- *    biological tissues," Photochem. Photobiol. 67:23-32, 1998. 
+ *    S. L. Jacques: "Light distributions from point, line, and plane
+ *    sources for photochemical reactions and fluorescence in turbid
+ *    biological tissues," Photochem. Photobiol. 67:23-32, 1998.
  *
- *  Trivial fixes to remove warnings SAP, 11/2017
- **********/
+ *  Trivial fixes to remove warnings. SAP, 11/2017
+ *  Updated for C17 compliance and improved readability. ML, 08/2025
+ ******************************************************************************/
 
+#include <float.h>
 #include <math.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#define	PI          3.1415926
-#define	LIGHTSPEED	2.997925E10 /* in vacuo speed of light [cm/s] */
-#define ALIVE       1   		/* if photon not yet terminated */
-#define DEAD        0    		/* if photon is to be terminated */
-#define THRESHOLD   0.01		/* used in roulette */
-#define CHANCE      0.1  		/* used in roulette */
-#define COS90D      1.0E-6
-     /* If cos(theta) <= COS90D, theta >= PI/2 - 1e-6 rad. */
-#define ONE_MINUS_COSZERO 1.0E-12
-     /* If 1-cos(theta) <= ONE_MINUS_COSZERO, fabs(theta) <= 1e-6 rad. */
-     /* If 1+cos(theta) <= ONE_MINUS_COSZERO, fabs(PI-theta) <= 1e-6 rad. */
-#define SIGN(x)           ((x)>=0 ? 1:-1)
-#define InitRandomGen    (double) RandomGen(0, 1, NULL)
-     /* Initializes the seed for the random number generator. */     
-#define RandomNum        (double) RandomGen(1, 0, NULL)
-     /* Calls for a random number from the randum number generator. */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
-/* DECLARE FUNCTION */
-double RandomGen(char Type, long Seed, long *Status);  
-     /* Random number generator */
+/* C standard library random number generator wrapper */
+double random_gen(char Type, long Seed, long *Status);
 
+/* Helper function to write formatted output to both file and console */
+int out(FILE *file, const char *format, ...);
 
-int main() {
+int main(void) {
+	/****
+	 * INPUT
+	 * Input the optical properties
+	 * Input the bin and array sizes
+	 * Input the number of photons
+	 ****/
+	const struct {
+		double mua;         /* absorption coefficient [cm^-1] */
+		double mus;         /* scattering coefficient [cm^-1] */
+		double g;           /* anisotropy [-] */
+		double nt;          /* tissue index of refraction */
+		double photons;     /* number of photons in simulation */
+		double radial_size; /* maximum radial size */
+		int32_t bins;       /* number of radial positions */
+	} params = {.mua = 1.0, .mus = 0.0, .g = 0.90, .nt = 1.33, .photons = 10000, .radial_size = 10.0, .bins = 100};
 
-/* Propagation parameters */
-double	x, y, z;    /* photon position */
-double	ux, uy, uz; /* photon trajectory as cosines */
-double  uxx, uyy, uzz;	/* temporary values used during SPIN */
-double	s;          /* step sizes. s = -log(RND)/mus [cm] */
-double	costheta;   /* cos(theta) */
-double  sintheta;   /* sin(theta) */
-double	cospsi;     /* cos(psi) */
-double  sinpsi;     /* sin(psi) */
-double	psi;        /* azimuthal angle */
-double	i_photon;   /* current photon */
-double	W;          /* photon weight */
-double	absorb;     /* weighted deposited in a step due to absorption */
-short   photon_status;  /* flag = ALIVE=1 or DEAD=0 */
+	/* Arrays are automatically sized based on params.bins - no manual intervention needed */
+	const double dr = params.radial_size / params.bins; /* cm */
+	const double albedo = params.mus / (params.mus + params.mua);
 
-/* other variables */
-double	Csph[101];  /* spherical   photon concentration CC[ir=0..100] */
-double	Ccyl[101];  /* cylindrical photon concentration CC[ir=0..100] */
-double	Cpla[101];  /* planar      photon concentration CC[ir=0..100] */
-double	Fsph;       /* fluence in spherical shell */
-double	Fcyl;       /* fluence in cylindrical shell */
-double	Fpla;       /* fluence in planar shell */
-double	mua;        /* absorption coefficient [cm^-1] */
-double	mus;        /* scattering coefficient [cm^-1] */
-double	g;          /* anisotropy [-] */
-double	albedo;     /* albedo of tissue */
-double	nt;         /* tissue index of refraction */
-double	Nphotons;   /* number of photons in simulation */
-short	NR;         /* number of radial positions */
-double	radial_size;  /* maximum radial size */
-double	r;          /* radial position */
-double  dr;         /* radial bin size */
-short	ir;         /* index to radial position */
-double  shellvolume;  /* volume of shell at radial position r */
+	/* Arrays to store photon concentrations - dynamically sized based on params.bins */
+	double Csph[params.bins + 1]; /* spherical   photon concentration [0..bins] */
+	double Ccyl[params.bins + 1]; /* cylindrical photon concentration [0..bins] */
+	double Cpla[params.bins + 1]; /* planar      photon concentration [0..bins] */
 
-/* dummy variables */
-double  rnd;        /* assigned random value 0-1 */
-double	temp;    /* dummy variables */
-FILE*	target;     /* point to output file */
+	/* Initialize arrays to zero */
+	for (int32_t i = 0; i <= params.bins; i++) {
+		Csph[i] = 0.0;
+		Ccyl[i] = 0.0;
+		Cpla[i] = 0.0;
+	}
 
+	/****
+	 * INITIALIZATIONS
+	 ****/
+	random_gen(0, 1, NULL); /* Initialize the random number generator with a seed. */
 
-/**** INPUT
-   Input the optical properties
-   Input the bin and array sizes 
-   Input the number of photons
-*****/
+	/****
+	 * RUN
+	 * Launch N photons, initializing each one before propagation.
+	 ****/
+	for (int32_t i_photon = 1; i_photon <= (int32_t)params.photons; i_photon++) {
+		/****
+		 * LAUNCH
+		 * Initialize photon position and trajectory.
+		 * Implements an isotropic point source.
+		 ****/
+		double W = 1.0;            /* set photon weight to one */
+		bool photon_status = true; /* Launch an ALIVE photon */
 
-mua         = 1.0;     /* cm^-1 */
-mus         = 0.0;  /* cm^-1 */
-g           = 0.90;  
-nt          = 1.33;
-Nphotons    = 10000; /* set number of photons in simulation */
-radial_size = 3.0;   /* cm, total range over which bins extend */
-NR          = 100;	 /* set number of bins.  */
-   /* IF NR IS ALTERED, THEN USER MUST ALSO ALTER THE ARRAY DECLARATION TO A SIZE = NR + 1. */
-dr          = radial_size/NR;  /* cm */
-albedo      = mus/(mus + mua);
+		/* Photon position */
+		struct {
+			double x, y, z;
+		} pos = {0, 0, 0}; /* Set photon position to origin. */
 
+		/* Photon trajectory as cosines */
+		double ux, uy, uz;
 
-/**** INITIALIZATIONS 
-*****/
-i_photon = 0;
-InitRandomGen;
-for (ir=0; ir<=NR; ir++) {
-   Csph[ir] = 0;
-   Ccyl[ir] = 0;
-   Cpla[ir] = 0;
-   }
-   
-/**** RUN
-   Launch N photons, initializing each one before progation.
-*****/
-do {
+		/* Randomly set photon trajectory to yield an isotropic source. */
+		const double costheta_init = 2.0 * random_gen(1, 0, NULL) - 1.0;
+		const double sintheta_init = sqrt(1.0 - (costheta_init * costheta_init)); /* sintheta is always positive */
+		const double psi_init = 2.0 * M_PI * random_gen(1, 0, NULL);
+		ux = sintheta_init * cos(psi_init);
+		uy = sintheta_init * sin(psi_init);
+		uz = costheta_init;
 
+		/****
+		 * HOP_DROP_SPIN_CHECK
+		 * Propagate one photon until it dies as determined by ROULETTE.
+		 ****/
+		do {
+			/****
+			 * HOP
+			 * Take step to new position
+			 * s = stepsize
+			 * ux, uy, uz are cosines of current photon trajectory
+			 ****/
 
-/**** LAUNCH 
-   Initialize photon position and trajectory.
-   Implements an isotropic point source.
-*****/
-i_photon += 1;	/* increment photon count */
-W = 1.0;                    /* set photon weight to one */
-photon_status = ALIVE;      /* Launch an ALIVE photon */
+			double rnd;
+			while ((rnd = random_gen(1, 0, NULL)) <= 0.0) {}         /* yields 0 < rnd <= 1 */
+			const double s = -log(rnd) / (params.mua + params.mus); /* Step size */
+			pos.x += s * ux;                                        /* Update positions. */
+			pos.y += s * uy;
+			pos.z += s * uz;
 
-x = 0;                      /* Set photon position to origin. */
-y = 0;
-z = 0;
+			/****
+			 * DROP
+			 * Drop photon weight (W) into local bin.
+			 ****/
+			const double absorb = W * (1 - albedo); /* photon weight absorbed at this step */
+			W -= absorb;                            /* decrement WEIGHT by amount absorbed */
 
-/* Randomly set photon trajectory to yield an isotropic source. */
-costheta = 2.0*RandomNum - 1.0;   
-sintheta = sqrt(1.0 - costheta*costheta);	/* sintheta is always positive */
-psi = 2.0*PI*RandomNum;
-ux = sintheta*cos(psi);
-uy = sintheta*sin(psi);
-uz = costheta;
+			/* Spherical binning */
+			{
+				const double r =
+					sqrt((pos.x * pos.x) + (pos.y * pos.y) + (pos.z * pos.z)); /* current spherical radial position */
+				int32_t ir = (int32_t)(r / dr);                                /* ir = index to spatial bin */
+				if (ir >= params.bins) {
+					ir = params.bins;                                          /* far-field bin for r >= radial_size */
+				}
+				Csph[ir] += absorb;                                            /* DROP absorbed weight into bin */
+			}
 
+			/* Cylindrical binning */
+			{
+				const double r = sqrt((pos.x * pos.x) + (pos.y * pos.y)); /* current cylindrical radial position */
+				int32_t ir = (int32_t)(r / dr);                           /* ir = index to spatial bin */
+				if (ir >= params.bins) {
+					ir = params.bins;                                     /* far-field bin for r >= radial_size */
+				}
+				Ccyl[ir] += absorb;                                       /* DROP absorbed weight into bin */
+			}
 
-/* HOP_DROP_SPIN_CHECK
-   Propagate one photon until it dies as determined by ROULETTE.
-*******/
-do {
+			/* Planar binning */
+			{
+				const double r = fabs(pos.z);   /* current planar radial position */
+				int32_t ir = (int32_t)(r / dr); /* ir = index to spatial bin */
+				if (ir >= params.bins) {
+					ir = params.bins;           /* far-field bin for r >= radial_size */
+				}
+				Cpla[ir] += absorb;             /* DROP absorbed weight into bin */
+			}
 
+			/****
+			 * SPIN
+			 * Scatter photon into new trajectory defined by theta and psi.
+			 * Theta is specified by cos(theta), which is determined
+			 * based on the Henyey-Greenstein scattering function.
+			 * Convert theta and psi into cosines ux, uy, uz.
+			 ****/
 
-/**** HOP
-   Take step to new position
-   s = stepsize
-   ux, uy, uz are cosines of current photon trajectory
-*****/
-  while ((rnd = RandomNum) <= 0.0);   /* yields 0 < rnd <= 1 */
-  s = -log(rnd)/(mua + mus);          /* Step size.  Note: log() is base e */
-  x += s * ux;                        /* Update positions. */
-  y += s * uy;
-  z += s * uz;
+			/* Sample costheta */
+			double costheta;
+			const double rnd_scatter = random_gen(1, 0, NULL);
+			if (params.g == 0.0) {
+				costheta = 2.0 * rnd_scatter - 1.0;
+			}
+			else {
+				const double temp = (1.0 - params.g * params.g) / (1.0 - params.g + 2 * params.g * rnd_scatter);
+				costheta = (1.0 + params.g * params.g - temp * temp) / (2.0 * params.g);
+			}
+			const double sintheta = sqrt(1.0 - (costheta * costheta)); /* sqrt() is faster than sin(). */
 
+			/* Sample psi */
+			const double psi = 2.0 * M_PI * random_gen(1, 0, NULL);
+			const double cospsi = cos(psi);
+			const double sinpsi = (psi < M_PI) ? sqrt(1.0 - (cospsi * cospsi)) : -sqrt(1.0 - (cospsi * cospsi));
 
-/**** DROP
-   Drop photon weight (W) into local bin.
-*****/
-   absorb = W*(1 - albedo);      /* photon weight absorbed at this step */
-   W -= absorb;                  /* decrement WEIGHT by amount absorbed */
-   
-   /* spherical */
-   r = sqrt(x*x + y*y + z*z);    /* current spherical radial position */
-   ir = (short)(r/dr);           /* ir = index to spatial bin */
-   if (ir >= NR) ir = NR;        /* last bin is for overflow */
-   Csph[ir] += absorb;           /* DROP absorbed weight into bin */
-   
-   /* cylindrical */
-   r = sqrt(x*x + y*y);          /* current cylindrical radial position */
-   ir = (short)(r/dr);           /* ir = index to spatial bin */
-   if (ir >= NR) ir = NR;        /* last bin is for overflow */
-   Ccyl[ir] += absorb;           /* DROP absorbed weight into bin */
-   
-   /* planar */
-   r = fabs(z);                  /* current planar radial position */
-   ir = (short)(r/dr);           /* ir = index to spatial bin */
-   if (ir >= NR) ir = NR;        /* last bin is for overflow */
-   Cpla[ir] += absorb;           /* DROP absorbed weight into bin */
-   
+			/* New trajectory */
+			double uxx, uyy, uzz;
+			if (1 - fabs(uz) <= DBL_EPSILON) { /* close to perpendicular. */
+				uxx = sintheta * cospsi;
+				uyy = sintheta * sinpsi;
+				uzz = costheta * (uz >= 0.0 ? 1.0 : -1.0);
+			}
+			else {                             /* usually use this option */
+				const double temp = sqrt(1.0 - (uz * uz));
+				uxx = sintheta * (ux * uz * cospsi - uy * sinpsi) / temp + ux * costheta;
+				uyy = sintheta * (uy * uz * cospsi + ux * sinpsi) / temp + uy * costheta;
+				uzz = -sintheta * cospsi * temp + uz * costheta;
+			}
 
-/**** SPIN 
-   Scatter photon into new trajectory defined by theta and psi.
-   Theta is specified by cos(theta), which is determined 
-   based on the Henyey-Greenstein scattering function.
-   Convert theta and psi into cosines ux, uy, uz. 
-*****/
-  /* Sample for costheta */
-  rnd = RandomNum;
-     if (g == 0.0)
-        costheta = 2.0*rnd - 1.0;
-     else {
-        double temp = (1.0 - g*g)/(1.0 - g + 2*g*rnd);
-        costheta = (1.0 + g*g - temp*temp)/(2.0*g);
-        }
-  sintheta = sqrt(1.0 - costheta*costheta); /* sqrt() is faster than sin(). */
+			/* Update trajectory */
+			ux = uxx;
+			uy = uyy;
+			uz = uzz;
 
-  /* Sample psi. */
-  psi = 2.0*PI*RandomNum;
-  cospsi = cos(psi);
-  if (psi < PI)
-    sinpsi = sqrt(1.0 - cospsi*cospsi);     /* sqrt() is faster than sin(). */
-  else
-    sinpsi = -sqrt(1.0 - cospsi*cospsi);
+			/****
+			 * CHECK ROULETTE
+			 * If photon weight below THRESHOLD, then terminate photon using Roulette technique.
+			 * Photon has CHANCE probability of having its weight increased by factor of 1/CHANCE,
+			 * and 1-CHANCE probability of terminating.
+			 ****/
+			const double threshold = 0.01; /* Threshold for roulette */
+			const double chance = 0.1;     /* Chance of surviving roulette */
 
-  /* New trajectory. */
-  if (1 - fabs(uz) <= ONE_MINUS_COSZERO) {      /* close to perpendicular. */
-    uxx = sintheta * cospsi;
-    uyy = sintheta * sinpsi;
-    uzz = costheta * SIGN(uz);   /* SIGN() is faster than division. */
-    } 
-  else {					/* usually use this option */
-    temp = sqrt(1.0 - uz * uz);
-    uxx = sintheta * (ux * uz * cospsi - uy * sinpsi) / temp + ux * costheta;
-    uyy = sintheta * (uy * uz * cospsi + ux * sinpsi) / temp + uy * costheta;
-    uzz = -sintheta * cospsi * temp + uz * costheta;
-    }
-    
-  /* Update trajectory */
-  ux = uxx;
-  uy = uyy;
-  uz = uzz;
+			if (W < threshold) {
+				if (random_gen(1, 0, NULL) <= chance) {
+					W /= chance;
+				}
+				else {
+					photon_status = false; /* Photon is DEAD */
+				}
+			}
+		}
+		while (photon_status == true);
+	}
 
+	/****
+	 * SAVE
+	 * Convert data to relative fluence rate [cm^-2] and save to file called "mc321.out".
+	 ****/
+	FILE *target = fopen("mc321.out", "w");
+	if (!target) {
+		fprintf(stderr, "Error: Cannot open output file\n");
+		return 1;
+	}
 
-/**** CHECK ROULETTE 
-   If photon weight below THRESHOLD, then terminate photon using Roulette technique.
-   Photon has CHANCE probability of having its weight increased by factor of 1/CHANCE,
-   and 1-CHANCE probability of terminating.
-*****/
-if (W < THRESHOLD) {
-   if (RandomNum <= CHANCE)
-      W /= CHANCE;
-   else photon_status = DEAD;
-   }
+	/* print header */
+	out(target, "Photons: %.0f\n", params.photons);
+	out(target, "Radius: %.1f\n", params.radial_size);
+	out(target, "Bins: %d\n", params.bins);
+	out(target, "Bin size: %.5f [cm]\n\n", dr);
 
+	/* print column titles */
+	out(target, "%8s %14s %14s %14s\n", "r [cm]", "Fsph [1/cm2]", "Fcyl [1/cm2]", "Fpla [1/cm2]");
+	out(target, "%8s %14s %14s %14s\n", "--------", "--------------", "--------------", "--------------");
 
-} /* end STEP_CHECK_HOP_SPIN */
-while (photon_status == ALIVE);
+	/* print data:  radial position, fluence rates for 3D, 2D, 1D geometries */
+	/* Note: Skip the far-field bin (ir = NR) as it doesn't represent a specific radial range */
+	for (int32_t ir = 0; ir < params.bins; ir++) {
+		const double r = (ir + 0.5) * dr;
 
-  /* If photon dead, then launch new photon. */
-} /* end RUN */
-while (i_photon < Nphotons);
+		/* Calculate shell volumes */
+		const double sph_volume = 4.0 * M_PI * r * r * dr; /* per spherical shell */
+		const double cyl_volume = 2.0 * M_PI * r * dr;     /* per cm length of cylinder */
+		const double pla_volume = dr;                      /* per cm2 area of plane */
 
+		const double Fsph = Csph[ir] / params.photons / sph_volume / params.mua;
+		const double Fcyl = Ccyl[ir] / params.photons / cyl_volume / params.mua;
+		const double Fpla = Cpla[ir] / params.photons / pla_volume / params.mua;
+		out(target, "%8.5f %14.6f %14.6f %14.6f\n", r, Fsph, Fcyl, Fpla);
+	}
 
-/**** SAVE
-   Convert data to relative fluence rate [cm^-2] and save to file called "mcmin321.out".
-*****/
-target = fopen("mc321.out", "w");
+	/* Report far-field bin separately if it contains significant data */
+	if (Csph[params.bins] > 0 || Ccyl[params.bins] > 0 || Cpla[params.bins] > 0) {
+		out(target, "%8s %14s %14s %14s\n", "--------", "--------------", "--------------", "--------------");
+		out(target, "%8s %14s %14s %14s\n", "r [cm]", "Sph [weight]", "Cyl [weight]", "Pla [weight]");
+		out(target, ">%7.4f %14.6f %14.6f %14.6f\n", params.radial_size, Csph[params.bins], Ccyl[params.bins],
+					Cpla[params.bins]);
+	}
 
-/* print header */
-fprintf(target, "number of photons = %f\n", Nphotons);
-fprintf(target, "bin size = %5.5f [cm] \n", dr);
-fprintf(target, "last row is overflow. Ignore.\n");
-
-/* print column titles */
-fprintf(target, "r [cm] \t Fsph [1/cm2] \t Fcyl [1/cm2] \t Fpla [1/cm2]\n");
-
-/* print data:  radial position, fluence rates for 3D, 2D, 1D geometries */
-for (ir=0; ir<=NR; ir++) {
-  	/* r = sqrt(1.0/3 - (ir+1) + (ir+1)*(ir+1))*dr; */
-  	r = (ir + 0.5)*dr;
-  	shellvolume = 4.0*PI*r*r*dr; /* per spherical shell */
-    Fsph = Csph[ir]/Nphotons/shellvolume/mua;
-  	shellvolume = 2.0*PI*r*dr;   /* per cm length of cylinder */
-    Fcyl = Ccyl[ir]/Nphotons/shellvolume/mua;
-  	shellvolume = dr;            /* per cm2 area of plane */
-    Fpla =Cpla[ir]/Nphotons/shellvolume/mua;
-  	fprintf(target, "%5.5f \t %4.3e \t %4.3e \t %4.3e \n", r, Fsph, Fcyl, Fpla);
-  	}
-
-fclose(target);
-
-
-} /* end of main */
-
- 
-
-/* SUBROUTINES */
-
-/**************************************************************************
- *	RandomGen
- *      A random number generator that generates uniformly
- *      distributed random numbers between 0 and 1 inclusive.
- *      The algorithm is based on:
- *      W.H. Press, S.A. Teukolsky, W.T. Vetterling, and B.P.
- *      Flannery, "Numerical Recipes in C," Cambridge University
- *      Press, 2nd edition, (1992).
- *      and
- *      D.E. Knuth, "Seminumerical Algorithms," 2nd edition, vol. 2
- *      of "The Art of Computer Programming", Addison-Wesley, (1981).
- *
- *      When Type is 0, sets Seed as the seed. Make sure 0<Seed<32000.
- *      When Type is 1, returns a random number.
- *      When Type is 2, gets the status of the generator.
- *      When Type is 3, restores the status of the generator.
- *
- *      The status of the generator is represented by Status[0..56].
- *
- *      Make sure you initialize the seed before you get random
- *      numbers.
- ****/
-#define MBIG 1000000000
-#define MSEED 161803398
-#define MZ 0
-#define FAC 1.0E-9
-
-double RandomGen(char Type, long Seed, long *Status){
-  static long i1, i2, ma[56];   /* ma[0] is not used. */
-  long        mj, mk;
-  short       i, ii;
-
-  if (Type == 0) {              /* set seed. */
-    mj = MSEED - (Seed < 0 ? -Seed : Seed);
-    mj %= MBIG;
-    ma[55] = mj;
-    mk = 1;
-    for (i = 1; i <= 54; i++) {
-      ii = (21 * i) % 55;
-      ma[ii] = mk;
-      mk = mj - mk;
-      if (mk < MZ)
-        mk += MBIG;
-      mj = ma[ii];
-    }
-    for (ii = 1; ii <= 4; ii++)
-      for (i = 1; i <= 55; i++) {
-        ma[i] -= ma[1 + (i + 30) % 55];
-        if (ma[i] < MZ)
-          ma[i] += MBIG;
-      }
-    i1 = 0;
-    i2 = 31;
-  } else if (Type == 1) {       /* get a number. */
-    if (++i1 == 56)
-      i1 = 1;
-    if (++i2 == 56)
-      i2 = 1;
-    mj = ma[i1] - ma[i2];
-    if (mj < MZ)
-      mj += MBIG;
-    ma[i1] = mj;
-    return (mj * FAC);
-  } else if (Type == 2) {       /* get status. */
-    for (i = 0; i < 55; i++)
-      Status[i] = ma[i + 1];
-    Status[55] = i1;
-    Status[56] = i2;
-  } else if (Type == 3) {       /* restore status. */
-    for (i = 0; i < 55; i++)
-      ma[i + 1] = Status[i];
-    i1 = Status[55];
-    i2 = Status[56];
-  } else
-    puts("Wrong parameter to RandomGen().");
-  return (0);
+	fclose(target);
+	return 0;
 }
-#undef MBIG
-#undef MSEED
-#undef MZ
-#undef FAC
 
+/****
+ * Helper function to write formatted output to both file and console
+ * Returns the number of characters written to file (or negative on error)
+ ****/
+int out(FILE *file, const char *format, ...) {
+	va_list args1, args2;
+	int result;
+
+	/* Initialize variable argument lists */
+	va_start(args1, format);
+	va_start(args2, format);
+
+	/* Write to file */
+	result = vfprintf(file, format, args1);
+
+	/* Write to console */
+	vprintf(format, args2);
+
+	/* Clean up */
+	va_end(args1);
+	va_end(args2);
+
+	return result;
+}
+
+/****
+ *  C standard library random number generator wrapper
+ *  Maintains compatibility with the original random_gen interface
+ *  while using the standard rand() function for simplicity.
+ *
+ *  When Type is 0, sets Seed as the seed. Make sure 0<Seed<32000.
+ *  When Type is 1, returns a random number between 0 and 1.
+ *  When Type is 2, gets the status of the generator.
+ *  When Type is 3, restores the status of the generator.
+ *
+ *  The status is represented by a single value: Status[0] = current seed.
+ ****/
+double random_gen(char type, long seed, long *status) {
+	static unsigned int current_seed = 1;
+
+	switch (type) {
+		/* set seed */
+		case 0: {
+			current_seed = (unsigned int)(seed < 0 ? -seed : seed);
+			if (current_seed == 0) { /* avoid zero seed */
+				current_seed = 1;
+			}
+			srand(current_seed);
+			break;
+		}
+		/* get a random number */
+		case 1: {
+			/* Return random number in range [0, 1) */
+			return (double)rand() / ((double)RAND_MAX + 1.0);
+		}
+
+		/* get status */
+		case 2:
+			if (status) {
+				status[0] = (long)current_seed;
+			}
+			break;
+
+		/* restore status */
+		case 3:
+			if (status) {
+				current_seed = (unsigned int)status[0];
+				srand(current_seed);
+			}
+			break;
+
+		/* default case for error handling */
+		default: fprintf(stderr, "Wrong parameter to random_gen(): %d\n", type); break;
+	}
+	return 0.0;
+}

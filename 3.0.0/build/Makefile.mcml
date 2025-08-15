@@ -4,7 +4,7 @@
 # Project info
 PROJECT = mcml
 VERSION = 3.0.0
-SRCDIR = ../src
+SRCDIR = ../src/mcml
 BINDIR = ../bin
 
 # Platform detection and cross-platform commands

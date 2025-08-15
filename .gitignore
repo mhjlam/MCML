@@ -88,6 +88,3 @@ mc/cudamc/outp.txt
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Custom
-3.0.0/src/backup

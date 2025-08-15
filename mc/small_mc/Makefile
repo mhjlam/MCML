@@ -6,7 +6,7 @@ EXES := $(SOURCES:.c=)
 ifeq ($(OS),Windows_NT)
 	EXEEXT = .exe
 	CC = gcc
-	RM = del /Q
+	RM = cmd /c del /Q
 else
 	EXEEXT =
 	CC = cc
