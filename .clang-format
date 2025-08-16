@@ -32,7 +32,7 @@ BraceWrapping:
   AfterEnum: false
   AfterStruct: false
   AfterNamespace: true
-  AfterExternBlock: true
+  AfterExternBlock: false
   BeforeElse: true
   BeforeCatch: true
   BeforeWhile: true
