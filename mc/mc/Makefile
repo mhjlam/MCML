@@ -1,6 +1,6 @@
 # Makefile for all standalone programs in small_mc (cross-platform)
 
-SOURCES := mc321.c small_mc.c time_mc.c tiny_mc.c trmc.c test_mcsub.c
+SOURCES := mc321.c small_mc.c time_mc.c tiny_mc.c trmc.c test_mcsub.c mcfluor.c
 EXES := $(SOURCES:.c=)
 
 ifeq ($(OS),Windows_NT)
