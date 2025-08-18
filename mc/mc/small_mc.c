@@ -21,30 +21,30 @@
 
 /* Simulation parameters */
 typedef struct {
-	double mu_a;              /* Absorption coefficient [1/cm] */
-	double mu_s;              /* Scattering coefficient [1/cm] */
-	double g;                 /* Scattering anisotropy [-1 <= g <= 1] */
-	double n;                 /* Index of refraction of medium */
-	double microns_per_bin;   /* Thickness of one bin layer [microns] */
-	int32_t bins;             /* Number of depth bins */
-	int64_t photons;          /* Number of photons to simulate */
+	double mu_a;            /* Absorption coefficient [1/cm] */
+	double mu_s;            /* Scattering coefficient [1/cm] */
+	double g;               /* Scattering anisotropy [-1 <= g <= 1] */
+	double n;               /* Index of refraction of medium */
+	double microns_per_bin; /* Thickness of one bin layer [microns] */
+	int32_t bins;           /* Number of depth bins */
+	int64_t photons;        /* Number of photons to simulate */
 } SimParams;
 
 /* Photon state */
 typedef struct {
-	double x, y, z;           /* Position [cm] */
-	double u, v, w;           /* Direction cosines */
-	double weight;            /* Photon weight */
+	double x, y, z; /* Position [cm] */
+	double u, v, w; /* Direction cosines */
+	double weight;  /* Photon weight */
 } Photon;
 
 /* Results storage */
 typedef struct {
-	double rs;                /* Specular reflection */
-	double rd;                /* Diffuse reflection */
-	double albedo;            /* Single scattering albedo */
-	double crit_angle;        /* Critical angle for total internal reflection */
-	double bins_per_mfp;      /* Bins per mean free path */
-	double *heat;             /* Heat deposition array */
+	double rs;           /* Specular reflection */
+	double rd;           /* Diffuse reflection */
+	double albedo;       /* Single scattering albedo */
+	double crit_angle;   /* Critical angle for total internal reflection */
+	double bins_per_mfp; /* Bins per mean free path */
+	double *heat;        /* Heat deposition array */
 } Results;
 
 /* C standard library random number generator wrapper */
@@ -64,13 +64,13 @@ void print_results(FILE *target, const SimParams *params, const Results *results
 int main(void) {
 	/* Simulation parameters */
 	const SimParams params = {
-		.mu_a = 5.0,              /* Absorption coefficient [1/cm] */
-		.mu_s = 95.0,             /* Scattering coefficient [1/cm] */
-		.g = 0.5,                 /* Scattering anisotropy */
-		.n = 1.5,                 /* Refractive index */
-		.microns_per_bin = 20.0,  /* Bin thickness [microns] */
-		.bins = 101,              /* Number of bins */
-		.photons = 100000         /* Number of photons */
+		.mu_a = 5.0,             /* Absorption coefficient [1/cm] */
+		.mu_s = 95.0,            /* Scattering coefficient [1/cm] */
+		.g = 0.5,                /* Scattering anisotropy */
+		.n = 1.5,                /* Refractive index */
+		.microns_per_bin = 20.0, /* Bin thickness [microns] */
+		.bins = 101,             /* Number of bins */
+		.photons = 100000        /* Number of photons */
 	};
 
 	/* Initialize results structure */
@@ -83,8 +83,8 @@ int main(void) {
 
 	/* Calculate derived parameters */
 	results.albedo = params.mu_s / (params.mu_s + params.mu_a);
-	results.rs = pow((params.n - 1.0) / (params.n + 1.0), 2);  /* Specular reflection */
-	results.crit_angle = sqrt(1.0 - pow(1.0 / params.n, 2));   /* Critical angle cosine */
+	results.rs = pow((params.n - 1.0) / (params.n + 1.0), 2); /* Specular reflection */
+	results.crit_angle = sqrt(1.0 - pow(1.0 / params.n, 2));  /* Critical angle cosine */
 	results.bins_per_mfp = 1e4 / params.microns_per_bin / (params.mu_a + params.mu_s);
 
 	/* Initialize random number generator */
@@ -101,17 +101,17 @@ int main(void) {
 	/* Run simulation */
 	printf("Running Small Monte Carlo simulation...\n");
 	printf("Photons: %lld, Bins: %d\n", (long long)params.photons, params.bins);
-	
+
 	for (int64_t i = 0; i < params.photons; i++) {
 		Photon photon;
 		launch_photon(&photon, &results);
-		
+
 		while (photon.weight > 0) {
 			move_photon(&photon, &params);
 			absorb_photon(&photon, &results, &params);
 			scatter_photon(&photon, &params, &results);
 		}
-		
+
 		/* Progress indicator */
 		if ((i + 1) % 10000 == 0) {
 			printf("Progress: %lld/%lld photons\n", (long long)(i + 1), (long long)params.photons);
@@ -124,7 +124,7 @@ int main(void) {
 	/* Cleanup */
 	fclose(target);
 	free(results.heat);
-	
+
 	printf("Simulation complete. Results saved to small_mc.out\n");
 	return 0;
 }
@@ -145,18 +145,18 @@ void bounce_photon(Photon *photon, Results *results, const SimParams *params) {
 	/* Reverse direction */
 	photon->w = -photon->w;
 	photon->z = -photon->z;
-	
+
 	/* Check for total internal reflection */
 	if (photon->w <= results->crit_angle) {
 		return;
 	}
 
 	/* Calculate Fresnel reflection */
-	const double t = sqrt(1.0 - pow(params->n, 2) * (1.0 - pow(photon->w, 2)));  /* cos of exit angle */
+	const double t = sqrt(1.0 - pow(params->n, 2) * (1.0 - pow(photon->w, 2))); /* cos of exit angle */
 	const double temp1 = (photon->w - params->n * t) / (photon->w + params->n * t);
 	const double temp = (t - params->n * photon->w) / (t + params->n * photon->w);
-	const double rf = (pow(temp1, 2) + pow(temp, 2)) / 2.0;  /* Fresnel reflection coefficient */
-	
+	const double rf = (pow(temp1, 2) + pow(temp, 2)) / 2.0;                     /* Fresnel reflection coefficient */
+
 	/* Update diffuse reflection */
 	results->rd += (1.0 - rf) * photon->weight;
 	photon->weight -= (1.0 - rf) * photon->weight;
@@ -166,7 +166,7 @@ void bounce_photon(Photon *photon, Results *results, const SimParams *params) {
 void move_photon(Photon *photon, const SimParams *params) {
 	/* Step size - matches original small_mc approach */
 	const double d = -log((random_gen(1, 0, NULL) * RAND_MAX + 1.0) / (RAND_MAX + 1.0));
-	
+
 	photon->x += d * photon->u;
 	photon->y += d * photon->v;
 	photon->z += d * photon->w;
@@ -180,23 +180,24 @@ void move_photon(Photon *photon, const SimParams *params) {
 /* Handle photon absorption */
 void absorb_photon(Photon *photon, Results *results, const SimParams *params) {
 	if (photon->z <= 0) {
-		return;  /* Don't absorb at surface */
+		return; /* Don't absorb at surface */
 	}
 
 	/* Deposit energy in appropriate depth bin */
 	const int32_t bin = (int32_t)(photon->z * results->bins_per_mfp);
 	const int32_t safe_bin = (bin >= params->bins - 1) ? params->bins - 1 : bin;
 	results->heat[safe_bin] += photon->weight * (1.0 - results->albedo);
-	
+
 	/* Update photon weight */
 	photon->weight *= results->albedo;
-	
+
 	/* Russian roulette for low-weight photons */
 	if (photon->weight < 0.001) {
 		if (random_gen(1, 0, NULL) > 0.1) {
 			photon->weight = 0.0;  /* Kill photon */
-		} else {
-			photon->weight /= 0.1;  /* Increase weight to maintain energy */
+		}
+		else {
+			photon->weight /= 0.1; /* Increase weight to maintain energy */
 		}
 	}
 }
@@ -212,17 +213,18 @@ void scatter_photon(Photon *photon, const SimParams *params, Results *results) {
 	/* Sample scattering angles using Henyey-Greenstein phase function */
 	const double rnd1 = random_gen(1, 0, NULL);
 	const double rnd2 = random_gen(1, 0, NULL);
-	
+
 	double costheta;
 	if (fabs(params->g) < 1e-6) {
 		/* Isotropic scattering */
 		costheta = 2.0 * rnd1 - 1.0;
-	} else {
+	}
+	else {
 		/* Henyey-Greenstein scattering */
 		const double temp = (1.0 - pow(params->g, 2)) / (1.0 - params->g + 2.0 * params->g * rnd1);
 		costheta = (1.0 + pow(params->g, 2) - pow(temp, 2)) / (2.0 * params->g);
 	}
-	
+
 	const double sintheta = sqrt(1.0 - pow(costheta, 2));
 	const double phi = 2.0 * M_PI * rnd2;
 	const double cosphi = cos(phi);
@@ -235,7 +237,8 @@ void scatter_photon(Photon *photon, const SimParams *params, Results *results) {
 		uxx = sintheta * cosphi;
 		uyy = sintheta * sinphi;
 		uzz = costheta * (photon->w >= 0.0 ? 1.0 : -1.0);
-	} else {
+	}
+	else {
 		/* General case */
 		const double temp = sqrt(1.0 - pow(photon->w, 2));
 		uxx = sintheta * (photon->u * photon->w * cosphi - photon->v * sinphi) / temp + photon->u * costheta;
@@ -252,7 +255,7 @@ void scatter_photon(Photon *photon, const SimParams *params, Results *results) {
 void print_results(FILE *target, const SimParams *params, const Results *results) {
 	out(target, "Small Monte Carlo by Scott Prahl (https://omlc.org)\n");
 	out(target, "1 W/cm^2 Uniform Illumination of Semi-Infinite Medium\n\n");
-	
+
 	out(target, "Simulation Parameters:\n");
 	out(target, "Scattering Coefficient:   %8.3f/cm\n", params->mu_s);
 	out(target, "Absorption Coefficient:   %8.3f/cm\n", params->mu_a);
@@ -270,7 +273,7 @@ void print_results(FILE *target, const SimParams *params, const Results *results
 		const double heat_density = results->heat[i] / params->microns_per_bin * 1e4 / params->photons;
 		out(target, "%12.0f %20.5f\n", depth, heat_density);
 	}
-	
+
 	/* Extra bin for anything beyond measurement range */
 	const double extra_heat = results->heat[params->bins - 1] / params->photons;
 	out(target, "%12s %20.5f\n", "extra", extra_heat);
@@ -280,16 +283,16 @@ void print_results(FILE *target, const SimParams *params, const Results *results
 int out(FILE *file, const char *format, ...) {
 	va_list args1, args2;
 	int result;
-	
+
 	va_start(args1, format);
 	va_start(args2, format);
-	
+
 	result = vfprintf(file, format, args1);
 	vprintf(format, args2);
-	
+
 	va_end(args1);
 	va_end(args2);
-	
+
 	return result;
 }
 
@@ -344,9 +347,7 @@ double random_gen(char Type, long Seed, long *Status) {
 				rng_state.inc = (unsigned long long)Status[1];
 			}
 			break;
-		default:
-			fprintf(stderr, "Wrong parameter to RandomGen(): %d\n", Type);
-			break;
+		default: fprintf(stderr, "Wrong parameter to RandomGen(): %d\n", Type); break;
 	}
 	return 0.0;
 }

@@ -119,7 +119,7 @@ int main(void) {
 			 ****/
 
 			double rnd;
-			while ((rnd = random_gen(1, 0, NULL)) <= 0.0) {}         /* yields 0 < rnd <= 1 */
+			while ((rnd = random_gen(1, 0, NULL)) <= 0.0) {}        /* yields 0 < rnd <= 1 */
 			const double s = -log(rnd) / (params.mua + params.mus); /* Step size */
 			pos.x += s * ux;                                        /* Update positions. */
 			pos.y += s * uy;
@@ -269,7 +269,7 @@ int main(void) {
 		out(target, "%8s %14s %14s %14s\n", "--------", "--------------", "--------------", "--------------");
 		out(target, "%8s %14s %14s %14s\n", "r [cm]", "Sph [weight]", "Cyl [weight]", "Pla [weight]");
 		out(target, ">%7.4f %14.6f %14.6f %14.6f\n", params.radial_size, Csph[params.bins], Ccyl[params.bins],
-					Cpla[params.bins]);
+			Cpla[params.bins]);
 	}
 
 	fclose(target);

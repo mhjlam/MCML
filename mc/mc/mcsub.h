@@ -46,7 +46,6 @@
 #include <string.h>
 #include <time.h>
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -96,30 +95,9 @@ extern "C" {
  *   Sptr,Aptr,Eptr - Pointers to store S, A, E fractions
  *   PRINTOUT  - Progress printing: 1=verbose, 0=silent
  */
-void mcsub(double mua,
-		   double mus,
-		   double g,
-		   double n1,
-		   double n2,
-		   long NR,
-		   long NZ,
-		   double dr,
-		   double dz,
-		   double Nphotons,
-		   int mcflag,
-		   double xs,
-		   double ys,
-		   double zs,
-		   int boundaryflag,
-		   double radius,
-		   double waist,
-		   double zfocus,
-		   double *J,
-		   double **F,
-		   double *Sptr,
-		   double *Aptr,
-		   double *Eptr,
-		   short PRINTOUT);
+void mcsub(double mua, double mus, double g, double n1, double n2, long NR, long NZ, double dr, double dz,
+		   double Nphotons, int mcflag, double xs, double ys, double zs, int boundaryflag, double radius, double waist,
+		   double zfocus, double *J, double **F, double *Sptr, double *Aptr, double *Eptr, short PRINTOUT);
 
 /*****
  * mcsub_rfresnel() - Fresnel reflectance calculation
@@ -145,28 +123,9 @@ double mcsub_rfresnel(double n1, double n2, double ca1, double *ca2_Ptr);
  * radial positions, escaping flux J[r], and fluence rate F[z,r].
  */
 
-void mcsub_save_file(int Nfile,
-					 double *J,
-					 double **F,
-					 double S,
-					 double A,
-					 double E,
-					 double mua,
-					 double mus,
-					 double g,
-					 double n1,
-					 double n2,
-					 short mcflag,
-					 double radius,
-					 double waist,
-					 double xs,
-					 double ys,
-					 double zs,
-					 short NR,
-					 short NZ,
-					 double dr,
-					 double dz,
-					 double Nphotons);
+void mcsub_save_file(int Nfile, double *J, double **F, double S, double A, double E, double mua, double mus, double g,
+					 double n1, double n2, short mcflag, double radius, double waist, double xs, double ys, double zs,
+					 short NR, short NZ, double dr, double dz, double Nphotons);
 
 /*****
  * Random Number Generation - PCG Algorithm
@@ -397,28 +356,9 @@ double mcsub_rfresnel(double n1, double n2, double ca1, double *ca2_Ptr) {
 }
 
 /* File Output */
-void mcsub_save_file(int Nfile,
-					 double *J,
-					 double **F,
-					 double S,
-					 double A,
-					 double E,
-					 double mua,
-					 double mus,
-					 double g,
-					 double n1,
-					 double n2,
-					 short mcflag,
-					 double radius,
-					 double waist,
-					 double xs,
-					 double ys,
-					 double zs,
-					 short NR,
-					 short NZ,
-					 double dr,
-					 double dz,
-					 double Nphotons) {
+void mcsub_save_file(int Nfile, double *J, double **F, double S, double A, double E, double mua, double mus, double g,
+					 double n1, double n2, short mcflag, double radius, double waist, double xs, double ys, double zs,
+					 short NR, short NZ, double dr, double dz, double Nphotons) {
 	char name[64];
 	FILE *target;
 	long ir, iz;
@@ -487,30 +427,9 @@ void mcsub_save_file(int Nfile,
 }
 
 /* Main Monte Carlo Simulation */
-void mcsub(double mua,
-		   double mus,
-		   double g,
-		   double n1,
-		   double n2,
-		   long NR,
-		   long NZ,
-		   double dr,
-		   double dz,
-		   double Nphotons,
-		   int mcflag,
-		   double xs,
-		   double ys,
-		   double zs,
-		   int boundaryflag,
-		   double radius,
-		   double waist,
-		   double zfocus,
-		   double *J,
-		   double **F,
-		   double *Sptr,
-		   double *Aptr,
-		   double *Eptr,
-		   short PRINTOUT) {
+void mcsub(double mua, double mus, double g, double n1, double n2, long NR, long NZ, double dr, double dz,
+		   double Nphotons, int mcflag, double xs, double ys, double zs, int boundaryflag, double radius, double waist,
+		   double zfocus, double *J, double **F, double *Sptr, double *Aptr, double *Eptr, short PRINTOUT) {
 	const short ALIVE = 1;
 	const short DEAD = 0;
 	const double THRESHOLD = 0.0001;

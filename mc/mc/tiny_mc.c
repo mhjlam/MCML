@@ -136,7 +136,7 @@ void launch_photon(Photon *photon) {
 void move_photon(Photon *photon, const SimParams *params) {
 	double rnd;
 	while ((rnd = random_gen(1, 0, NULL)) <= 0.0) {} /* Ensure 0 < rnd <= 1 */
-	const double t = -log(rnd);                     /* Step size in mean free paths */
+	const double t = -log(rnd);                      /* Step size in mean free paths */
 	photon->x += t * photon->u;
 	photon->y += t * photon->v;
 	photon->z += t * photon->w;
@@ -227,7 +227,7 @@ void print_results(FILE *target, const SimParams *params, const Results *results
 
 	out(target, "\nTotal absorbed energy: %12.8f\n", total_heat / params->photons);
 	out(target, "Energy conservation check: %8.5f (should be close to %.5f)\n", total_heat / params->photons,
-				1.0 - results->albedo);
+		1.0 - results->albedo);
 }
 
 /* Helper function to write formatted output to both file and console */

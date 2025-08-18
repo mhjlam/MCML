@@ -125,8 +125,9 @@ typedef struct {
  * Initialize default simulation parameters
  */
 static SimulationParams init_default_params(void) {
+	// clang-format off
 	const SimulationParams params = {
-        .file_number = 1,
+		.file_number = 1,
 
 		// Excitation parameters
 		.excitation_absorption = 1.0,
@@ -168,7 +169,8 @@ static SimulationParams init_default_params(void) {
 		.radial_spacing = 0.0100,
 		.depth_spacing = 0.0100,
 		.enable_printout = 1
-    };
+	};
+	// clang-format on
 	return params;
 }
 
@@ -356,8 +358,7 @@ static void run_excitation(const SimulationParams *params, SimulationResults *re
 /**
  * Run background fluorescence simulation
  */
-static void run_background_fluorescence(const SimulationParams *params,
-										SimulationResults *results,
+static void run_background_fluorescence(const SimulationParams *params, SimulationResults *results,
 										const SimulationArrays *arrays) {
 	const long num_radial = NUM_BINS;
 	const long num_depth = NUM_BINS;
@@ -434,11 +435,8 @@ static void run_background_fluorescence(const SimulationParams *params,
 /**
  * Run heterogeneous fluorescence simulation for one side
  */
-static void run_heterogeneous_fluorescence_side(const SimulationParams *params,
-												const SimulationResults *results,
-												const SimulationArrays *arrays,
-												int file_num,
-												bool positive_side) {
+static void run_heterogeneous_fluorescence_side(const SimulationParams *params, const SimulationResults *results,
+												const SimulationArrays *arrays, int file_num, bool positive_side) {
 	const long num_radial = NUM_BINS;
 	const long num_depth = NUM_BINS;
 
@@ -501,8 +499,7 @@ static void run_heterogeneous_fluorescence_side(const SimulationParams *params,
 /**
  * Run heterogeneous fluorescence simulation
  */
-static void run_heterogeneous_fluorescence(const SimulationParams *params,
-										   SimulationResults *results,
+static void run_heterogeneous_fluorescence(const SimulationParams *params, SimulationResults *results,
 										   const SimulationArrays *arrays) {
 	const long num_radial = NUM_BINS;
 	const long num_depth = NUM_BINS;
@@ -553,7 +550,7 @@ static void print_timing_summary(const SimulationParams *params, const Simulatio
 	printf("Actual total elapsed time = %.2f min\n", actual_time);
 }
 
-/* 
+/*
  * Main function to run the Monte Carlo fluorescence simulation
  */
 int main(void) {

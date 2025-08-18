@@ -11,6 +11,7 @@
  *
  *  Original by Steven L. Jacques based on collaborative work with
  *  Lihong Wang, Scott Prahl, and Marleen Keijzer.
+ *
  *  Updated for C17 compliance and improved readability. ML, 08/2025
  ******************************************************************************/
 
@@ -126,8 +127,9 @@ int main(void) {
 				/* Record photon at this timepoint */
 				double r = sqrt(x1 * x1 + y1 * y1 + z1 * z1); /* Radial position */
 				int32_t ir = (int32_t)(r / results.dr);
-				if (ir >= params.nr)
+				if (ir >= params.nr) {
 					ir = params.nr;                           /* Overflow bin */
+				}
 				results.csph[ir][it] += 1.0;                  /* Drop photon into bin */
 
 				/* Move to next timepoint */

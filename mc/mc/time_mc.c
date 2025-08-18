@@ -183,11 +183,11 @@ void move_photon(Photon *photon, const SimParams *params) {
 	double rnd;
 	while ((rnd = random_gen(1, 0, NULL)) <= 0.0) {} /* Ensure 0 < rnd <= 1 */
 
-	const double s = -log(rnd);                     /* Step size in mean free paths */
+	const double s = -log(rnd);                      /* Step size in mean free paths */
 	photon->x += s * photon->u;
 	photon->y += s * photon->v;
 	photon->z += s * photon->w;
-	photon->t += s / LIGHTSPEED * 1e12 * params->n; /* Update time [ps] */
+	photon->t += s / LIGHTSPEED * 1e12 * params->n;  /* Update time [ps] */
 
 	/* Check for surface interaction */
 	if (photon->z <= 0) {
@@ -208,12 +208,13 @@ void absorb_photon(Photon *photon, const SimParams *params, Results *results) {
 
 	const double absorb = photon->weight * params->mu_a / (params->mu_a + params->mu_s);
 	photon->weight -= absorb;
-	
+
 	/* Russian roulette for low-weight photons */
 	if (photon->weight < 0.001) {
 		if (random_gen(1, 0, NULL) > 0.1) {
-			photon->weight = 0.0; /* Kill photon */
-		} else {
+			photon->weight = 0.0;  /* Kill photon */
+		}
+		else {
 			photon->weight /= 0.1; /* Increase weight to maintain energy */
 		}
 	}
