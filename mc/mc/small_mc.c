@@ -293,31 +293,55 @@ int out(FILE *file, const char *format, ...) {
 	return result;
 }
 
-/* C standard library random number generator wrapper */
+/* PCG random number generator wrapper */
+
+/* PCG Random Number Generator State */
+typedef struct {
+	unsigned long long state;
+	unsigned long long inc;
+} pcg_state_t;
+
+static pcg_state_t rng_state = {0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL};
+
+static unsigned int pcg32_random(void) {
+	unsigned long long oldstate = rng_state.state;
+	rng_state.state = oldstate * 6364136223846793005ULL + rng_state.inc;
+	unsigned int xorshifted = (unsigned int)(((oldstate >> 18u) ^ oldstate) >> 27u);
+	unsigned int rot = (unsigned int)(oldstate >> 59u);
+	return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+}
+
+static void pcg_seed(unsigned long long seed) {
+	rng_state.state = 0U;
+	rng_state.inc = (seed << 1u) | 1u;
+	pcg32_random();
+	rng_state.state += seed;
+	pcg32_random();
+}
+
 double random_gen(char Type, long Seed, long *Status) {
-	static unsigned int current_seed = 1;
-	
 	switch (Type) {
 		case 0: {
-			current_seed = (unsigned int)(Seed < 0 ? -Seed : Seed);
-			if (current_seed == 0) {
-				current_seed = 1;
+			unsigned long long pcg_seed_val = (unsigned long long)(Seed < 0 ? -Seed : Seed);
+			if (pcg_seed_val == 0) {
+				pcg_seed_val = 1;
 			}
-			srand(current_seed);
+			pcg_seed(pcg_seed_val);
 			break;
 		}
 		case 1: {
-			return (double)rand() / ((double)RAND_MAX + 1.0);
+			return (pcg32_random() >> 5) * 0x1.0p-27;
 		}
 		case 2:
 			if (Status) {
-				Status[0] = (long)current_seed;
+				Status[0] = (long)(rng_state.state & 0xFFFFFFFF);
+				Status[1] = (long)(rng_state.inc & 0xFFFFFFFF);
 			}
 			break;
 		case 3:
 			if (Status) {
-				current_seed = (unsigned int)Status[0];
-				srand(current_seed);
+				rng_state.state = (unsigned long long)Status[0];
+				rng_state.inc = (unsigned long long)Status[1];
 			}
 			break;
 		default:
