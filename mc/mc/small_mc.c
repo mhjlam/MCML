@@ -164,6 +164,8 @@ void bounce_photon(Photon *photon, Results *results, const SimParams *params) {
 
 /* Move photon to next scattering or absorption event */
 void move_photon(Photon *photon, const SimParams *params) {
+	(void)params; /* Suppress unused parameter warning */
+	
 	/* Step size - matches original small_mc approach */
 	const double d = -log((random_gen(1, 0, NULL) * RAND_MAX + 1.0) / (RAND_MAX + 1.0));
 

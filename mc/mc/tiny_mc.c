@@ -134,6 +134,8 @@ void launch_photon(Photon *photon) {
 
 /* Move photon to next interaction site */
 void move_photon(Photon *photon, const SimParams *params) {
+	(void)params; /* Suppress unused parameter warning */
+	
 	double rnd;
 	while ((rnd = random_gen(1, 0, NULL)) <= 0.0) {} /* Ensure 0 < rnd <= 1 */
 	const double t = -log(rnd);                      /* Step size in mean free paths */

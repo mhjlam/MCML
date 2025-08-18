@@ -202,6 +202,8 @@ void move_photon(Photon *photon, const SimParams *params) {
 
 /* Handle photon absorption */
 void absorb_photon(Photon *photon, const SimParams *params, Results *results) {
+	(void)results; /* Suppress unused parameter warning */
+	
 	if (photon->z <= 0) {
 		return; /* Don't absorb at surface */
 	}
