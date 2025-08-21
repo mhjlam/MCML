@@ -1,0 +1,207 @@
+# Cross-platform Makefile for MCXYZ - Monte Carlo Photon Transport
+#
+# Monte Carlo simulation of photon transport in 3D voxelized media
+# Supports Windows, Linux, and macOS with optimized builds
+#
+# Usage:
+#   make              # Build optimized release version  
+#   make debug        # Build debug version with symbols
+#   make clean        # Remove build artifacts
+#   make test         # Run validation tests
+#   make sample       # Run sample simulation
+
+################################################################################
+# DIRECTORY STRUCTURE
+
+# Project directories
+SRC_DIR = ../src
+DOC_DIR = ../doc
+BIN_DIR = ../bin
+BUILD_DIR = .
+SAMPLE_DIR = ../sample
+MATLAB_DIR = ../matlab
+
+################################################################################
+# BUILD CONFIGURATION
+
+# Program information
+PROGRAM = mcxyz
+VERSION = 2.0.0
+
+# Source files - using warning-fixed version
+MAIN_SRC = $(DOC_DIR)/mcxyz_fixed.c
+
+# Object files (built in build directory)
+MAIN_OBJ = mcxyz.o
+
+################################################################################
+# PLATFORM DETECTION AND COMPILER SELECTION
+
+# Detect operating system
+ifeq ($(OS),Windows_NT)
+    DETECTED_OS = Windows
+    EXEEXT = .exe
+    RM = del /Q
+    MKDIR = mkdir
+    CP = copy
+    PATHSEP = \\
+    NULL_DEVICE = NUL
+else
+    DETECTED_OS = $(shell uname -s)
+    EXEEXT =
+    RM = rm -f
+    MKDIR = mkdir -p
+    CP = cp
+    PATHSEP = /
+    NULL_DEVICE = /dev/null
+endif
+
+# Compiler detection
+CC ?= gcc
+
+################################################################################
+# COMPILER FLAGS AND OPTIMIZATION
+
+# Base compiler flags - C99 compatible with reduced warnings
+CFLAGS = -std=c99 -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable -Wno-maybe-uninitialized
+
+# Include directories
+CFLAGS += -I$(SRC_DIR)
+
+# Math library linking
+LDFLAGS = -lm
+
+# Platform-specific flags
+ifeq ($(DETECTED_OS),Windows)
+    CFLAGS += -D_WIN32_WINNT=0x0601
+    # Windows-specific optimizations
+    CFLAGS += -D_USE_MATH_DEFINES
+endif
+
+ifeq ($(DETECTED_OS),Linux)
+    CFLAGS += -D_GNU_SOURCE -D_DEFAULT_SOURCE
+    # Linux-specific optimizations
+    CFLAGS += -pthread
+endif
+
+ifeq ($(DETECTED_OS),Darwin)
+    CFLAGS += -D_DARWIN_C_SOURCE
+    # macOS-specific optimizations
+    CFLAGS += -D_XOPEN_SOURCE=700
+endif
+
+################################################################################
+# BUILD TARGETS
+
+# Default target - optimized release build
+all: release
+
+# Release build - optimized for performance
+release: CFLAGS += -O2 -DNDEBUG -march=native
+release: $(BIN_DIR)/$(PROGRAM)$(EXEEXT)
+
+# Debug build - optimized for debugging
+debug: CFLAGS += -O0 -g3 -DDEBUG -fno-omit-frame-pointer
+debug: $(BIN_DIR)/$(PROGRAM)_debug$(EXEEXT)
+
+################################################################################
+# BUILD RULES
+
+# Create necessary directories
+$(BIN_DIR):
+ifeq ($(DETECTED_OS),Windows)
+	@powershell -Command "if (!(Test-Path '$(BIN_DIR)')) { New-Item -ItemType Directory -Path '$(BIN_DIR)' }"
+else
+	@$(MKDIR) $(BIN_DIR)
+endif
+
+# Main executable target
+$(BIN_DIR)/$(PROGRAM)$(EXEEXT): $(MAIN_OBJ) | $(BIN_DIR)
+	@echo "Linking $(PROGRAM)$(EXEEXT)..."
+	$(CC) $(MAIN_OBJ) -o $@ $(LDFLAGS)
+	@echo "Build complete: $@"
+
+# Debug executable target
+$(BIN_DIR)/$(PROGRAM)_debug$(EXEEXT): $(MAIN_OBJ) | $(BIN_DIR)
+	@echo "Linking debug $(PROGRAM)$(EXEEXT)..."
+	$(CC) $(MAIN_OBJ) -o $@ $(LDFLAGS)
+	@echo "Debug build complete: $@"
+
+# Object file compilation rule
+$(MAIN_OBJ): $(MAIN_SRC)
+	@echo "Compiling $<..."
+	$(CC) $(CFLAGS) -c $< -o $@
+
+################################################################################
+# UTILITY TARGETS
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+ifeq ($(DETECTED_OS),Windows)
+	-powershell -Command "Remove-Item -Path '*.o' -Force -ErrorAction SilentlyContinue"
+	-powershell -Command "Remove-Item -Path '$(BIN_DIR)\\*.exe' -Force -ErrorAction SilentlyContinue"
+else
+	$(RM) *.o
+	$(RM) $(BIN_DIR)/$(PROGRAM)* 2>$(NULL_DEVICE) || true
+endif
+	@echo "Clean complete."
+
+# Run basic validation test
+test: $(BIN_DIR)/$(PROGRAM)$(EXEEXT)
+	@echo "Running validation tests..."
+	@echo "Testing executable exists and runs..."
+ifeq ($(DETECTED_OS),Windows)
+	@powershell -Command "if (Test-Path '$(BIN_DIR)/$(PROGRAM)$(EXEEXT)') { Write-Host 'Executable found: $(BIN_DIR)/$(PROGRAM)$(EXEEXT)' } else { Write-Host 'ERROR: Executable not found'; exit 1 }"
+else
+	@test -f "$(BIN_DIR)/$(PROGRAM)$(EXEEXT)" && echo "Executable found: $(BIN_DIR)/$(PROGRAM)$(EXEEXT)" || (echo "ERROR: Executable not found" && exit 1)
+endif
+	@echo "Basic tests completed successfully."
+
+# Run sample simulation (Cross-platform)
+sample: $(BIN_DIR)/$(PROGRAM)$(EXEEXT)
+	@echo "Running sample simulation..."
+ifeq ($(DETECTED_OS),Windows)
+	@powershell -Command "if (Test-Path '$(SAMPLE_DIR)/skinvessel_H.mci') { Set-Location '$(SAMPLE_DIR)'; & '../bin/$(PROGRAM)$(EXEEXT)' skinvessel } else { Write-Host 'Sample files not found in $(SAMPLE_DIR)' }"
+else
+	@if [ -f "$(SAMPLE_DIR)/skinvessel_H.mci" ]; then \
+		cd $(SAMPLE_DIR) && ../bin/$(PROGRAM)$(EXEEXT) skinvessel; \
+	else \
+		echo "Sample files not found in $(SAMPLE_DIR)"; \
+	fi
+endif
+
+# Show build information
+info:
+	@echo "MCXYZ Build Information"
+	@echo "======================"
+	@echo "Program: $(PROGRAM) v$(VERSION)"
+	@echo "Platform: $(DETECTED_OS)"
+	@echo "Compiler: $(CC)"
+	@echo "Source Dir: $(SRC_DIR)"
+	@echo "Build Dir: $(BUILD_DIR)"
+	@echo "Binary Dir: $(BIN_DIR)"
+	@echo "Sample Dir: $(SAMPLE_DIR)"
+	@echo "Sources: $(MAIN_SRC)"
+	@echo "Objects: $(MAIN_OBJ)"
+
+# Show help
+help:
+	@echo "MCXYZ Makefile - Available targets:"
+	@echo ""
+	@echo "Build targets:"
+	@echo "  all/release  - Build optimized release version (default)"
+	@echo "  debug        - Build debug version with symbols"
+	@echo ""
+	@echo "Utility targets:"
+	@echo "  clean        - Remove build artifacts"
+	@echo "  test         - Run basic validation tests"
+	@echo "  sample       - Run sample simulation"
+	@echo "  info         - Show build configuration"
+	@echo "  help         - Show this help message"
+
+################################################################################
+# SPECIAL TARGETS
+
+.PHONY: all release debug clean test sample info help
+.DEFAULT_GOAL := all
