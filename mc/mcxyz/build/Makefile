@@ -28,10 +28,10 @@ MATLAB_DIR = ../matlab
 PROGRAM = mcxyz
 VERSION = 2.0.0
 
-# Source files - modular architecture with fixed transport
+# Source files - single unified transport module
 SOURCES = $(SRC_DIR)/mcxyz_main.c \
           $(SRC_DIR)/mcxyz_io.c \
-          $(SRC_DIR)/mcxyz_transport_fixed.c \
+          $(SRC_DIR)/mcxyz_transport.c \
           $(SRC_DIR)/mcxyz_rng.c
 
 # Object files (built in build directory)
@@ -72,14 +72,20 @@ endif
 ################################################################################
 # COMPILER FLAGS AND OPTIMIZATION
 
-# Base compiler flags - C99 compatible with reduced warnings
-CFLAGS = -std=c99 -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable -Wno-maybe-uninitialized
+# Base compiler flags - C17 standard with ultra-optimizations
+CFLAGS = -std=c17 -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable -Wno-maybe-uninitialized \
+         -march=native -mtune=native -msse2 -mavx2 -mfma -ffast-math \
+         -funroll-loops -fprefetch-loop-arrays -ftree-vectorize \
+         -fomit-frame-pointer -finline-functions -fipa-pta
+
+# OpenMP support for multi-threading
+CFLAGS += -fopenmp
 
 # Include directories
 CFLAGS += -I$(SRC_DIR)
 
 # Math library linking
-LDFLAGS = -lm
+LDFLAGS = -lm -fopenmp
 
 # Platform-specific flags
 ifeq ($(DETECTED_OS),Windows)

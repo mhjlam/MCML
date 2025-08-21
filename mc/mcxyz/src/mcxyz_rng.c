@@ -1,4 +1,4 @@
-/*==============================================================================
+/*
  * MCXYZ - Monte Carlo simulation of photon transport in 3D voxelized media
  *
  * Random Number Generation Module

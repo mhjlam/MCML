@@ -1,5 +1,5 @@
 /*==============================================================================
- * MCXYZ - Monte Carlo simulation of photon transport in 3D voxelized media
+ * MCXYZ - Monte Carlo photon transport in 3D voxelized media
  *
  * Main Program and Command-Line Interface Module
  *
@@ -17,13 +17,22 @@
  * COPYRIGHT:
  * ----------
  * Original work (2010-2017): Steven L. Jacques, Ting Li (Oregon Health & Science University)
- * Modernization (2025): Upgraded to C17 standards with modular architecture
- */
+ * Modernization (2025): C17 standards, multi-threading, performance optimizations
+ *
+ * LICENSE:
+ * --------
+ * This software is distributed under the terms of the GNU General Public License v3.0
+ * 
+ * COMPILATION:
+ * -----------
+ * Requires C17 compiler with OpenMP support
+ * gcc -std=c17 -fopenmp -O2 -march=native -o mcxyz mcxyz_main.c mcxyz_*.c -lm
+ *
+ *============================================================================*/
 
 #include "mcxyz.h"
 
 #include <errno.h>
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // PROGRAM INFORMATION AND VERSION
@@ -49,6 +58,8 @@ typedef struct {
 	bool quiet;                                // Suppress non-essential output
 	bool show_help;                            // Show help message
 	bool show_version;                         // Show version information
+	bool use_multithreading;                   // Enable multi-threaded execution
+	bool use_ultra_optimization;               // Enable ultra performance optimizations
 
 	char input_basename[MAX_FILENAME_LENGTH];  // Input file basename
 	char output_basename[MAX_FILENAME_LENGTH]; // Output file basename (optional)
@@ -57,6 +68,7 @@ typedef struct {
 	float time_override;      // Override simulation time (minutes)
 	uint64_t photon_override; // Override photon count
 	uint64_t random_seed;     // Random number generator seed
+	int thread_count;         // Number of threads to use (0 = auto)
 
 	bool has_time_override;   // Whether time override is specified
 	bool has_photon_override; // Whether photon override is specified
@@ -105,7 +117,7 @@ static void show_help_message(const char* program_name) {
 	printf("  <input_basename>_T.bin    Binary tissue structure file\n\n");
 
 	printf("OUTPUT FILES:\n");
-	printf("  <input_basename>_F.bin    Fluence rate distribution [W/cm²/W]\n");
+	printf("  <input_basename>_F.bin    Fluence rate distribution [W/cm^2/W]\n");
 	printf("  <input_basename>_props.m  Tissue optical properties (MATLAB)\n\n");
 
 	printf("OPTIONS:\n");
@@ -113,6 +125,8 @@ static void show_help_message(const char* program_name) {
 	printf("  -v, --version           Show version information and exit\n");
 	printf("  -V, --verbose           Enable verbose output with detailed progress\n");
 	printf("  -q, --quiet             Suppress non-essential output messages\n");
+	printf("  -j, --threads <count>   Enable multi-threading with specified thread count (0=auto)\n");
+	printf("  -u, --ultra             Enable ultra performance optimizations (SIMD, advanced)\n");
 	printf("  -t, --time <minutes>    Override simulation time (minutes)\n");
 	printf("  -n, --photons <count>   Override target photon count\n");
 	printf("  -s, --seed <value>      Set random number generator seed\n");
@@ -150,8 +164,9 @@ static void show_help_message(const char* program_name) {
  * Check if argument matches short or long option
  */
 static bool matches_option(const char* arg, const char short_opt, const char* long_opt) {
-	if (arg[0] != '-')
+	if (arg[0] != '-') {
 		return false;
+	}
 
 	// Short option: -h
 	if (arg[1] != '-' && arg[1] == short_opt && arg[2] == '\0') {
@@ -219,6 +234,30 @@ static McxyzErrorCode parse_command_line(int argc, char* argv[], ProgramConfig* 
 		// Quiet option
 		if (matches_option(arg, 'q', "quiet")) {
 			config->quiet = true;
+			i++;
+			continue;
+		}
+
+		// Multi-threading option
+		if (matches_option(arg, 'j', "threads")) {
+			if (i + 1 >= argc) {
+				fprintf(stderr, "Error: --threads requires a value\n");
+				return MCXYZ_ERROR_INVALID_PARAMETER;
+			}
+			config->thread_count = atoi(argv[i + 1]);
+			config->use_multithreading = true;
+			if (config->thread_count < 0) {
+				fprintf(stderr, "Error: Thread count must be non-negative (got %d)\n", config->thread_count);
+				return MCXYZ_ERROR_INVALID_PARAMETER;
+			}
+			i += 2;
+			continue;
+		}
+
+		// Ultra optimization option
+		if (matches_option(arg, 'u', "ultra")) {
+			config->use_ultra_optimization = true;
+			config->use_multithreading = true; // Ultra implies multi-threading
 			i++;
 			continue;
 		}
@@ -358,16 +397,17 @@ static void apply_program_overrides(ProgramConfig* prog_config, SimulationConfig
  * Print simulation configuration summary
  */
 static void print_simulation_summary(const SimulationConfig* config, const ProgramConfig* prog_config) {
-	if (prog_config->quiet)
+	if (prog_config->quiet) {
 		return;
+	}
 
 	printf("=== MCXYZ Simulation Configuration ===\n");
 	printf("Simulation name: %s\n", config->name);
 	printf("Target time: %.2f minutes\n", config->simulation_time_minutes);
-	printf("Grid dimensions: %d × %d × %d voxels\n", config->grid.size_x, config->grid.size_y, config->grid.size_z);
-	printf("Voxel spacing: %.4f × %.4f × %.4f cm\n", config->grid.spacing_x, config->grid.spacing_y,
+	printf("Grid dimensions: %d x %d x %d voxels\n", config->grid.size_x, config->grid.size_y, config->grid.size_z);
+	printf("Voxel spacing: %.4f x %.4f x %.4f cm\n", config->grid.spacing_x, config->grid.spacing_y,
 		   config->grid.spacing_z);
-	printf("Total volume: %.3f × %.3f × %.3f cm\n", config->grid.volume_x, config->grid.volume_y,
+	printf("Total volume: %.3f x %.3f x %.3f cm\n", config->grid.volume_x, config->grid.volume_y,
 		   config->grid.volume_z);
 	printf("Source type: %d\n", (int)config->source.type);
 	printf("Boundary type: %d\n", (int)config->source.boundary);
@@ -392,19 +432,12 @@ static int handle_error(McxyzErrorCode error_code, const char* context, Simulati
 
 	switch (error_code) {
 		case MCXYZ_SUCCESS: return 0;
-
 		case MCXYZ_ERROR_MEMORY_ALLOCATION: error_message = "Memory allocation failed"; break;
-
 		case MCXYZ_ERROR_FILE_NOT_FOUND: error_message = "Input file not found"; break;
-
 		case MCXYZ_ERROR_FILE_FORMAT: error_message = "Invalid file format"; break;
-
 		case MCXYZ_ERROR_INVALID_PARAMETER: error_message = "Invalid parameter"; break;
-
 		case MCXYZ_ERROR_SIMULATION_FAILURE: error_message = "Simulation failed"; break;
-
 		case MCXYZ_ERROR_OUTPUT_WRITE: error_message = "Output file write failed"; break;
-
 		default: error_message = "Unknown error"; break;
 	}
 
@@ -488,14 +521,26 @@ int main(int argc, char* argv[]) {
 	// Print simulation summary
 	print_simulation_summary(&sim_config, &prog_config);
 
-	// Run Monte Carlo simulation
+	// Run Monte Carlo simulation (choose single-threaded or multi-threaded)
 	if (!prog_config.quiet) {
 		printf("Starting Monte Carlo simulation...\n");
+		if (prog_config.use_multithreading) {
+			printf("Using multi-threaded execution\n");
+		}
 		printf("Target photons: %llu\n", (unsigned long long)sim_config.target_photon_count);
 		printf("Target time: %.2f minutes\n\n", sim_config.simulation_time_minutes);
 	}
 
-	result = run_monte_carlo_simulation(&sim_config, &metrics);
+	if (prog_config.use_ultra_optimization) {
+		result = run_monte_carlo_simulation_ultra(&sim_config, &metrics);
+	}
+	else if (prog_config.use_multithreading) {
+		result = run_monte_carlo_simulation_mt(&sim_config, &metrics);
+	}
+	else {
+		result = run_monte_carlo_simulation(&sim_config, &metrics);
+	}
+
 	if (result != MCXYZ_SUCCESS) {
 		return handle_error(result, "Monte Carlo simulation", &sim_config);
 	}
@@ -516,7 +561,10 @@ int main(int argc, char* argv[]) {
 		printf("Photons processed: %llu\n", (unsigned long long)metrics.photons_completed);
 		printf("Simulation time: %.3f seconds\n", metrics.elapsed_seconds);
 		printf("Performance: %.1f million photons/second\n", metrics.photons_per_second / 1e6);
-		printf("Memory used: %.2f MB\n", metrics.memory_allocated / (1024.0 * 1024.0));
+
+		// Calculate memory usage
+		size_t memory_used = sim_config.grid.total_voxels * (sizeof(uint8_t) + sizeof(float));
+		printf("Memory used: %.2f MB\n", memory_used / (1024.0 * 1024.0));
 		printf("===========================\n");
 	}
 

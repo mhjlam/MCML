@@ -1,4 +1,4 @@
-/*==============================================================================
+/*
  * MCXYZ - Monte Carlo simulation of photon transport in 3D voxelized media
  *
  * COPYRIGHT AND DEVELOPMENT HISTORY:
@@ -491,6 +491,24 @@ static inline int sign_double(double x) {
 static inline double square_double(double x) {
 	return x * x;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// MULTI-THREADED SIMULATION FUNCTIONS
+
+/**
+ * Multi-threaded Monte Carlo simulation with performance optimizations
+ */
+McxyzErrorCode run_monte_carlo_simulation_mt(SimulationConfig* config, PerformanceMetrics* metrics);
+
+/**
+ * Ultra-optimized Monte Carlo simulation with advanced performance features
+ */
+McxyzErrorCode run_monte_carlo_simulation_ultra(SimulationConfig* config, PerformanceMetrics* metrics);
+
+/**
+ * Optimized memory allocation with alignment for cache performance
+ */
+McxyzErrorCode allocate_simulation_memory_aligned(SimulationConfig* config);
 
 #ifdef __cplusplus
 }
