@@ -28,11 +28,17 @@ MATLAB_DIR = ../matlab
 PROGRAM = mcxyz
 VERSION = 2.0.0
 
-# Source files - using warning-fixed version
-MAIN_SRC = $(DOC_DIR)/mcxyz_fixed.c
+# Source files - modular architecture with fixed transport
+SOURCES = $(SRC_DIR)/mcxyz_main.c \
+          $(SRC_DIR)/mcxyz_io.c \
+          $(SRC_DIR)/mcxyz_transport_fixed.c \
+          $(SRC_DIR)/mcxyz_rng.c
 
 # Object files (built in build directory)
-MAIN_OBJ = mcxyz.o
+OBJECTS = mcxyz_main.o \
+          mcxyz_io.o \
+          mcxyz_transport.o \
+          mcxyz_rng.o
 
 ################################################################################
 # PLATFORM DETECTION AND COMPILER SELECTION
@@ -57,7 +63,11 @@ else
 endif
 
 # Compiler detection
-CC ?= gcc
+ifeq ($(DETECTED_OS),Windows)
+    CC = gcc
+else
+    CC ?= gcc
+endif
 
 ################################################################################
 # COMPILER FLAGS AND OPTIMIZATION
@@ -116,21 +126,33 @@ else
 endif
 
 # Main executable target
-$(BIN_DIR)/$(PROGRAM)$(EXEEXT): $(MAIN_OBJ) | $(BIN_DIR)
+$(BIN_DIR)/$(PROGRAM)$(EXEEXT): $(OBJECTS) | $(BIN_DIR)
 	@echo "Linking $(PROGRAM)$(EXEEXT)..."
-	$(CC) $(MAIN_OBJ) -o $@ $(LDFLAGS)
+	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
 	@echo "Build complete: $@"
 
 # Debug executable target
-$(BIN_DIR)/$(PROGRAM)_debug$(EXEEXT): $(MAIN_OBJ) | $(BIN_DIR)
+$(BIN_DIR)/$(PROGRAM)_debug$(EXEEXT): $(OBJECTS) | $(BIN_DIR)
 	@echo "Linking debug $(PROGRAM)$(EXEEXT)..."
-	$(CC) $(MAIN_OBJ) -o $@ $(LDFLAGS)
+	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
 	@echo "Debug build complete: $@"
 
-# Object file compilation rule
-$(MAIN_OBJ): $(MAIN_SRC)
+# Object file compilation rules
+mcxyz_main.o: $(SRC_DIR)/mcxyz_main.c
 	@echo "Compiling $<..."
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -c $< -o $@
+
+mcxyz_io.o: $(SRC_DIR)/mcxyz_io.c
+	@echo "Compiling $<..."
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -c $< -o $@
+
+mcxyz_transport.o: $(SRC_DIR)/mcxyz_transport.c
+	@echo "Compiling $<..."
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -c $< -o $@
+
+mcxyz_rng.o: $(SRC_DIR)/mcxyz_rng.c
+	@echo "Compiling $<..."
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -c $< -o $@
 
 ################################################################################
 # UTILITY TARGETS

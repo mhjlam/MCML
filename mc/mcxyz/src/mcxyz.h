@@ -102,10 +102,7 @@ extern "C" {
  * High precision values ensure accurate trigonometric and geometric
  * computations throughout the Monte Carlo simulation.
  */
-#define PI                3.14159265358979323846 // Pi - ratio of circumference to diameter
-#define LIGHTSPEED        2.997925e10            // Speed of light in vacuum [cm/s]
-#define COS90D            1.0e-6                 // cos(theta) threshold for perpendicular rays
-#define ONE_MINUS_COSZERO 1.0e-12                // Threshold for parallel ray detection
+#define PI 3.14159265358979323846 // Pi - ratio of circumference to diameter
 
 /**
  * Monte Carlo simulation control parameters
@@ -436,7 +433,7 @@ bool world_to_voxel_coords(double x, double y, double z, const VoxelGrid* grid, 
  * @return Linear voxel index
  */
 static inline int get_voxel_index(int voxel_x, int voxel_y, int voxel_z, const VoxelGrid* grid) {
-	return voxel_z * grid->size_y * grid->size_x + voxel_x * grid->size_y + voxel_y;
+	return (voxel_z * grid->size_y * grid->size_x) + (voxel_x * grid->size_y) + voxel_y;
 }
 
 /**
