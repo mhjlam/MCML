@@ -560,7 +560,13 @@ int main(int argc, char* argv[]) {
 		printf("\n=== Simulation Complete ===\n");
 		printf("Photons processed: %llu\n", (unsigned long long)metrics.photons_completed);
 		printf("Simulation time: %.3f seconds\n", metrics.elapsed_seconds);
-		printf("Performance: %.1f million photons/second\n", metrics.photons_per_second / 1e6);
+		
+		// Calculate performance correctly with double precision
+		double performance_mps = 0.0;
+		if (metrics.elapsed_seconds > 0.0) {
+			performance_mps = (double)metrics.photons_completed / metrics.elapsed_seconds / 1e6;
+		}
+		printf("Performance: %.3f million photons/second\n", performance_mps);
 
 		// Calculate memory usage
 		size_t memory_used = sim_config.grid.total_voxels * (sizeof(uint8_t) + sizeof(float));
