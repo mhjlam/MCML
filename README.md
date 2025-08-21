@@ -108,22 +108,19 @@ make -f Makefile.mcml clean     # Remove MCML files and outputs
 make -f Makefile.conv clean     # Remove CONV files and outputs
 ```
 
-## Additional Standalone Programs
+## Additional Programs
 
 This repository also includes several standalone Monte Carlo projects that are referenced on the MCML website at <https://omlc.org/software/mc/>. These have been updated to work on modern systems and are provided with Makefiles as well.
-
-### Simple Monte Carlo Programs
 
 - `tiny_mc` - Simulates light propagation from a point source in an infinite medium with isotropic scattering (by Scott Prahl).
 - `small_mc` - Simulates light propagation from normal irradiation of a semi-infinite medium with anisotropic scattering. It calculates the volumetric heating as a function of depth. (by Scott Prahl).
 - `time_mc` - Simulates the time resolved backscattering of a semi-infinite medium with anisotropic scattering (by Scott Prahl).
 - `trmc` - Simple time-resolved Monte Carlo (by Steven L. Jacques, 1998).
+- `mcfluor` - Simulation of fluorescence in scattering medium (such as biological tissues). Models both excitation and fluorescence emission processes with integration to MATLAB for analysis and visualization (by Steven L. Jacques, 2007).
+- `mcsub` - A small Monte Carlo subroutine library that can be used in other programs, and has MATLAB integration (by Steven L. Jacques, 2010).
 - `mc321` - Simple steady-state Monte Carlo in spherical, cylindrical and planar coordinates (by Steven L. Jacques, 2017).
-- `mcsubLIB` - A small Monte Carlo subroutine library that can be used in other programs, and has MATLAB integration (by Steven L. Jacques, 2010).
 
-### Advanced Monte Carlo Programs
-
-#### **mcxyz** - 3D Monte Carlo
+### **mcxyz** - 3D Monte Carlo
 
 Simulates light transport in 3D tissue structures using a cube of voxels, where a voxel can represent one of several different tissue types. It creates detailed maps showing how light spreads through the tissue. Useful for medical applications like therapy planning and optical imaging. Includes MATLAB tools for setting up simulations and supports various light sources.
 
@@ -131,19 +128,17 @@ Simulates light transport in 3D tissue structures using a cube of voxels, where 
 - **Authors**: Steven Jacques, Ting Li, Scott Prahl
 - **Website**: <https://omlc.org/software/mc/mcxyz/index.html>
 
-#### **mcfluor** - Fluorescent Monte Carlo
+### CUDAMC and CUDAMCML
 
-Simulation of fluorescence in scattering medium (such as biological tissues). Models both excitation and fluorescence emission processes with integration to MATLAB for analysis and visualization.
+#### **CUDAMC** - CUDA-powered MC
+
+CUDAMC specializes in time-resolved photon transport simulations in homogeneous media using GPU acceleration. It focuses on temporal analysis of photon migration patterns, making it valuable for time-domain spectroscopy and diffuse optical tomography where timing information helps distinguish tissue types and detect abnormalities in medical diagnostics.
 
 - **Date**: 2007
-- **Author**: Steven Jacques
-- **Website**: <https://omlc.org/software/mc/mcfluor/index.html>
+- **Authors**: Erik Alerstam, Tomas Svensson, Stefan Andersson-Engels
+- **Website**: <https://www.atomic.physics.lu.se/biophotonics/research/monte-carlo-simulations/gpu-monte-carlo>
 
-### GPU-Based Monte Carlo Programs
-
-GPU implementations provide significant performance improvements over CPU-based Monte Carlo simulations, reducing computation time from weeks to hours or days for complex simulations. The two programs below are based on CUDA, which only works on a modern NVIDIA graphics card, and building them requires the CUDA Toolkit from <https://developer.nvidia.com/cuda-downloads>.
-
-#### **CUDAMCML** - CUDA Monte Carlo Multi-Layer
+#### **CUDAMCML** - CUDA-powered MCML
 
 CUDAMCML accelerates multi-layered tissue simulations using GPU parallel processing while maintaining compatibility with the original MCML format. It leverages thousands of GPU cores to simulate photon trajectories simultaneously, making it ideal for medical imaging, optical diagnostics, and biomedical research requiring rapid analysis of light propagation through complex layered tissue structures.
 
@@ -151,10 +146,18 @@ CUDAMCML accelerates multi-layered tissue simulations using GPU parallel process
 - **Authors**: Erik Alerstam, Tomas Svensson, Stefan Andersson-Engels
 - **Website**: <https://www.atomic.physics.lu.se/biophotonics/research/monte-carlo-simulations/gpu-monte-carlo>
 
-#### **CUDAMC** - Time-resolved MC in a semi-infinite geometry
+#### Modernized versions
 
-CUDAMC specializes in time-resolved photon transport simulations in homogeneous media using GPU acceleration. It focuses on temporal analysis of photon migration patterns, making it valuable for time-domain spectroscopy and diffuse optical tomography where timing information helps distinguish tissue types and detect abnormalities in medical diagnostics.
+Both CUDAMC and CUDAMCML have been comprehensively modernized and refactored to improve code quality, maintainability, and documentation while preserving their original performance characteristics and simulation accuracy. The modernization effort focused on applying modern C++ practices, enhancing code organization, and providing extensive documentation of the underlying physics and algorithms.
 
-- **Date**: 2007
-- **Authors**: Erik Alerstam, Tomas Svensson, Stefan Andersson-Engels
-- **Website**: <https://www.atomic.physics.lu.se/biophotonics/research/monte-carlo-simulations/gpu-monte-carlo>
+**Key improvements include:**
+
+- **Comprehensive documentation**: Every function now includes detailed headers explaining the physics, mathematics, and implementation approach
+- **Modern C++ practices**: Enhanced type safety, const correctness, RAII memory management, and improved error handling
+- **Modular architecture**: Clear separation of concerns with dedicated modules for I/O operations, memory management, random number generation, and physics transport
+- **Enhanced physics documentation**: Complete mathematical derivations for Fresnel reflection, Henyey-Greenberg scattering, absorption calculations, and other optical phenomena
+- **Improved code organization**: Logical grouping of functionality with consistent naming conventions and coding standards
+- **Better error handling**: Detailed error reporting with specific failure contexts and validation mechanisms
+- **Performance optimization**: Maintained original GPU performance while improving memory access patterns and atomic operations
+
+The modernized CUDA implementations maintain backward compatibility with existing input formats while providing significantly improved code readability and maintainability for future development and scientific research applications.
