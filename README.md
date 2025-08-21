@@ -112,6 +112,8 @@ make -f Makefile.conv clean     # Remove CONV files and outputs
 
 This repository also includes several standalone Monte Carlo projects that are referenced on the MCML website at <https://omlc.org/software/mc/>. These have been updated to work on modern systems and are provided with Makefiles as well.
 
+### Simple Monte Carlo
+
 - `tiny_mc` - Simulates light propagation from a point source in an infinite medium with isotropic scattering (by Scott Prahl).
 - `small_mc` - Simulates light propagation from normal irradiation of a semi-infinite medium with anisotropic scattering. It calculates the volumetric heating as a function of depth. (by Scott Prahl).
 - `time_mc` - Simulates the time resolved backscattering of a semi-infinite medium with anisotropic scattering (by Scott Prahl).
@@ -128,9 +130,9 @@ Simulates light transport in 3D tissue structures using a cube of voxels, where 
 - **Authors**: Steven Jacques, Ting Li, Scott Prahl
 - **Website**: <https://omlc.org/software/mc/mcxyz/index.html>
 
-### CUDAMC and CUDAMCML
+### CUDA-based Monte Carlo
 
-#### **CUDAMC** - CUDA-powered MC
+#### **CUDAMC** - CUDA Monte Carlo
 
 CUDAMC specializes in time-resolved photon transport simulations in homogeneous media using GPU acceleration. It focuses on temporal analysis of photon migration patterns, making it valuable for time-domain spectroscopy and diffuse optical tomography where timing information helps distinguish tissue types and detect abnormalities in medical diagnostics.
 
@@ -138,7 +140,7 @@ CUDAMC specializes in time-resolved photon transport simulations in homogeneous 
 - **Authors**: Erik Alerstam, Tomas Svensson, Stefan Andersson-Engels
 - **Website**: <https://www.atomic.physics.lu.se/biophotonics/research/monte-carlo-simulations/gpu-monte-carlo>
 
-#### **CUDAMCML** - CUDA-powered MCML
+#### **CUDAMCML** - CUDA Monte Carlo Multi-Layered
 
 CUDAMCML accelerates multi-layered tissue simulations using GPU parallel processing while maintaining compatibility with the original MCML format. It leverages thousands of GPU cores to simulate photon trajectories simultaneously, making it ideal for medical imaging, optical diagnostics, and biomedical research requiring rapid analysis of light propagation through complex layered tissue structures.
 
@@ -146,7 +148,7 @@ CUDAMCML accelerates multi-layered tissue simulations using GPU parallel process
 - **Authors**: Erik Alerstam, Tomas Svensson, Stefan Andersson-Engels
 - **Website**: <https://www.atomic.physics.lu.se/biophotonics/research/monte-carlo-simulations/gpu-monte-carlo>
 
-#### Modernized versions
+#### Update
 
 Both CUDAMC and CUDAMCML have been comprehensively modernized and refactored to improve code quality, maintainability, and documentation while preserving their original performance characteristics and simulation accuracy. The modernization effort focused on applying modern C++ practices, enhancing code organization, and providing extensive documentation of the underlying physics and algorithms.
 
