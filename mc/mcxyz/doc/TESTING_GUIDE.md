@@ -4,7 +4,7 @@ This guide shows how to test and visualize MCXYZ Monte Carlo simulations using G
 
 ## Prerequisites
 
-1. **Install GNU Octave**: Download from https://www.gnu.org/software/octave/
+1. **Install GNU Octave**: Download from <https://www.gnu.org/software/octave>
 2. **Built MCXYZ**: Ensure you have `mcxyz.exe` in the `bin/` directory
 
 ## Quick Test with Existing Data
