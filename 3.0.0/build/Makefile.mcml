@@ -6,6 +6,7 @@ PROJECT = mcml
 VERSION = 3.0.0
 SRCDIR = ../src/mcml
 BINDIR = ../bin
+BUILDDIR = output
 TESTDIR = ../test
 DOCDIR = ../doc
 
@@ -40,8 +41,7 @@ ifeq ($(OS),Windows_NT)
 		LIBS = -lm
 		COMPILER_FOUND = $(CXX)
 		ifeq ($(BUILD_TYPE),debug)
-			CXXFLAGS += -g -O0 -DDEBUG -fsanitize=address,undefined
-			LDFLAGS += -fsanitize=address,undefined
+			CXXFLAGS += -g -O0 -DDEBUG
 		else
 			CXXFLAGS += -O2 -DNDEBUG
 		endif
@@ -60,8 +60,7 @@ else
 	LIBS = -lm
 	COMPILER_FOUND = $(CXX)
 	ifeq ($(BUILD_TYPE),debug)
-		CXXFLAGS += -g -O0 -DDEBUG -fsanitize=address,undefined
-		LDFLAGS += -fsanitize=address,undefined
+		CXXFLAGS += -g -O0 -DDEBUG
 	else
 		CXXFLAGS += -O2 -DNDEBUG
 	endif
@@ -81,13 +80,13 @@ TEST_TARGET = $(BINDIR)/$(PROJECT)_test$(EXEEXT)
 
 # Source files from the C++ implementation
 SRCS = $(SRCDIR)/main.cpp $(SRCDIR)/reader.cpp $(SRCDIR)/reader_util.cpp \
-       $(SRCDIR)/simulator.cpp $(SRCDIR)/tracer.cpp $(SRCDIR)/writer.cpp $(SRCDIR)/cin_reader.cpp
-OBJS = main.o reader.o reader_util.o simulator.o tracer.o writer.o cin_reader.o
+       $(SRCDIR)/simulator.cpp $(SRCDIR)/tracer.cpp $(SRCDIR)/writer.cpp $(SRCDIR)/reader_cin.cpp
+OBJS = $(BUILDDIR)/main.o $(BUILDDIR)/reader.o $(BUILDDIR)/reader_util.o $(BUILDDIR)/simulator.o $(BUILDDIR)/tracer.o $(BUILDDIR)/writer.o $(BUILDDIR)/reader_cin.o
 HEADERS = $(wildcard $(SRCDIR)/*.hpp) $(wildcard $(SRCDIR)/*.tpp)
 
 # Test source files (if they exist)
 TEST_SRCS = $(wildcard $(TESTDIR)/*.cpp)
-TEST_OBJS = $(TEST_SRCS:$(TESTDIR)/%.cpp=test_%.o)
+TEST_OBJS = $(TEST_SRCS:$(TESTDIR)/%.cpp=$(BUILDDIR)/test_%.o)
 
 # Default target
 .PHONY: all
@@ -104,12 +103,16 @@ info:
 	$(ECHO) "   C++ Standard: C++20"
 	$(ECHO) "   Source Dir:   $(SRCDIR)"
 	$(ECHO) "   Binary Dir:   $(BINDIR)"
+	$(ECHO) "   Build Dir:    $(BUILDDIR)"
 	$(ECHO) "   Flags:        $(CXXFLAGS)"
 	$(ECHO)
 
 # Create necessary directories
 $(BINDIR):
 	$(Q)$(call MKDIR_P,$(BINDIR))
+
+$(BUILDDIR):
+	$(Q)$(call MKDIR_P,$(BUILDDIR))
 
 $(TESTDIR):
 	$(Q)$(call MKDIR_P,$(TESTDIR))
@@ -121,16 +124,16 @@ $(DOCDIR):
 .PHONY: mcml
 mcml: $(TARGET) copy-samples
 
-$(TARGET): $(BINDIR) $(OBJS)
+$(TARGET): $(BINDIR) $(BUILDDIR) $(OBJS)
 	$(ECHO) "Linking $(TARGET)..."
 ifeq ($(CXX),cl)
-	$(Q)$(CXX) $(CXXFLAGS) $(addprefix ./,$(OBJS)) /Fe$@ $(LIBS)
+	$(Q)$(CXX) $(CXXFLAGS) $(OBJS) /Fe$@ $(LIBS)
 else
-	$(Q)$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $(addprefix ./,$(OBJS)) $(LIBS)
+	$(Q)$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 endif
 
-# Object file rules (object files stay in build folder)
-main.o: $(SRCDIR)/main.cpp $(HEADERS)
+# Object file rules (object files go in output directory)
+$(BUILDDIR)/main.o: $(SRCDIR)/main.cpp $(HEADERS)
 	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
 	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/main.cpp /Fo$@
@@ -138,7 +141,7 @@ else
 	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/main.cpp -o $@
 endif
 
-reader.o: $(SRCDIR)/reader.cpp $(HEADERS)
+$(BUILDDIR)/reader.o: $(SRCDIR)/reader.cpp $(HEADERS)
 	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
 	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/reader.cpp /Fo$@
@@ -146,7 +149,7 @@ else
 	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/reader.cpp -o $@
 endif
 
-reader_util.o: $(SRCDIR)/reader_util.cpp $(HEADERS)
+$(BUILDDIR)/reader_util.o: $(SRCDIR)/reader_util.cpp $(HEADERS)
 	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
 	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/reader_util.cpp /Fo$@
@@ -154,7 +157,7 @@ else
 	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/reader_util.cpp -o $@
 endif
 
-simulator.o: $(SRCDIR)/simulator.cpp $(HEADERS)
+$(BUILDDIR)/simulator.o: $(SRCDIR)/simulator.cpp $(HEADERS)
 	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
 	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/simulator.cpp /Fo$@
@@ -162,7 +165,7 @@ else
 	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/simulator.cpp -o $@
 endif
 
-tracer.o: $(SRCDIR)/tracer.cpp $(HEADERS)
+$(BUILDDIR)/tracer.o: $(SRCDIR)/tracer.cpp $(HEADERS)
 	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
 	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/tracer.cpp /Fo$@
@@ -170,7 +173,7 @@ else
 	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/tracer.cpp -o $@
 endif
 
-writer.o: $(SRCDIR)/writer.cpp $(HEADERS)
+$(BUILDDIR)/writer.o: $(SRCDIR)/writer.cpp $(HEADERS)
 	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
 	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/writer.cpp /Fo$@
@@ -178,12 +181,12 @@ else
 	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/writer.cpp -o $@
 endif
 
-cin_reader.o: $(SRCDIR)/cin_reader.cpp $(HEADERS)
+$(BUILDDIR)/reader_cin.o: $(SRCDIR)/reader_cin.cpp $(HEADERS)
 	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
-	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/cin_reader.cpp /Fo$@
+	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/reader_cin.cpp /Fo$@
 else
-	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/cin_reader.cpp -o $@
+	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/reader_cin.cpp -o $@
 endif
 
 # Testing targets
@@ -294,12 +297,12 @@ endif
 clean:
 	$(ECHO) "Cleaning build artifacts..."
 ifeq ($(OS),Windows_NT)
-	$(Q)if exist "*.o" $(RM) *.o >$(DEVNULL) 2>&1
-	$(Q)if exist "*.mco" $(RM) *.mco >$(DEVNULL) 2>&1
-	$(Q)if exist "test" $(RMDIR) "test" >$(DEVNULL) 2>&1 || echo.
+	$(Q)if exist "$(BUILDDIR)$(PATHSEP)*.o" $(RM) "$(BUILDDIR)$(PATHSEP)*.o" >$(DEVNULL) 2>&1
+	$(Q)if exist "$(BUILDDIR)$(PATHSEP)*.mco" $(RM) "$(BUILDDIR)$(PATHSEP)*.mco" >$(DEVNULL) 2>&1
+	$(Q)if exist "$(BUILDDIR)$(PATHSEP)test" $(RMDIR) "$(BUILDDIR)$(PATHSEP)test" >$(DEVNULL) 2>&1 || echo.
 else
-	$(Q)$(RM) *.o *.mco 2>$(DEVNULL) || true
-	$(Q)$(RMDIR) test 2>$(DEVNULL) || true
+	$(Q)$(RM) $(BUILDDIR)/*.o $(BUILDDIR)/*.mco 2>$(DEVNULL) || true
+	$(Q)$(RMDIR) $(BUILDDIR)/test 2>$(DEVNULL) || true
 endif
 
 .PHONY: clean-all

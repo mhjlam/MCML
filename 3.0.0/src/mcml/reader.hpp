@@ -1,153 +1,146 @@
 #pragma once
 
-#include <string>
-#include <memory>
-#include <vector>
-#include <istream>
-#include <variant>
-#include <iostream>
-#include <optional>
-
 #include "mcml.hpp"
 #include "reader_util.hpp"
 
+#include <iostream>
+#include <istream>
+#include <memory>
+#include <optional>
+#include <string>
+#include <variant>
+#include <vector>
 
 using OutputFile = std::pair<std::string, FileFormat>;
 
-
 class Random;
-
 
 class Reader
 {
-
 public:
-    Reader(std::string filename, std::string_view version = MCI_VERSION);
-    ~Reader() = default;
+	Reader(std::string filename, std::string_view version = MCI_VERSION);
+	~Reader() = default;
 
-    // Read the input parameters for all runs and count number of runs.
-    virtual bool ReadParams(std::istream& input, RunParams& params);
+	/** @brief Read input parameters for all runs and count number of runs */
+	virtual bool read_params(std::istream& input, RunParams& params);
 
-    // Read the mediums list.
-    virtual bool ReadMediums(std::istream& input, vec1<Layer>& out);
+	/** @brief Read the mediums list */
+	virtual bool read_mediums(std::istream& input, vec1<Layer>& out);
 
-    // Read the input name and the input format.
-    virtual bool ReadOutput(std::istream& input, std::string& out);
+	/** @brief Read the output filename and format */
+	virtual bool read_output(std::istream& input, std::string& out);
 
-    // Read the parameters of all layers.
-    virtual bool ReadLayers(std::istream& input, RunParams& params, vec1<Layer>& out);
+	/** @brief Read the parameters of all layers */
+	virtual bool read_layers(std::istream& input, RunParams& params, vec1<Layer>& out);
 
-    // Read the beam source type (Pencil or Isotropic) and starting position.
-    virtual bool ReadSource(std::istream& input, RunParams& params, LightSource& out);
+	/** @brief Read beam source type and starting position */
+	virtual bool read_source(std::istream& input, RunParams& params, LightSource& out);
 
-    // Read the grid separation parameters (z, r, t) and number of grid lines (z, r, t, and alpha).
-    virtual bool ReadGrid(std::istream& in, Grid& out);
+	/** @brief Read grid separation parameters and number of grid lines */
+	virtual bool read_grid(std::istream& in, Grid& out);
 
-    // Read which quantity is to be scored.
-    virtual bool ReadRecord(std::istream& input, RunParams& params, Record& out);
+	/** @brief Read which quantity is to be scored */
+	virtual bool read_record(std::istream& input, RunParams& params, Record& out);
 
-    // Read the number of photons and computation time limit.
-    virtual bool ReadTarget(std::istream& input, RunParams& params, Target& out, bool add = false);
+	/** @brief Read number of photons and computation time limit */
+	virtual bool read_target(std::istream& input, RunParams& params, Target& out, bool add = false);
 
-    // Read the weight threshold.
-    virtual bool ReadWeight(std::istream& input, double& out);
+	/** @brief Read the weight threshold */
+	virtual bool read_weight(std::istream& input, double& out);
 
+	/** @brief Read random number generator seed (unused) */
+	bool read_seed(std::istream& input, long& out);
 
-    // Read the seed for random number generator (unused).
-    bool ReadSeed(std::istream& input, long& out);
+	/** @brief Check whether input version matches expected version */
+	bool read_version(std::istream& input, const std::string_view& version);
 
-    // Check whether the input version is the same as version.
-    bool ReadVersion(std::istream& input, const std::string_view& version);
+	/** @brief Read input parameters for one run */
+	bool read_run_params(std::istream& input, RunParams& params);
 
-    // Read in the input parameters for one run.
-    bool ReadRunParams(std::istream& input, RunParams& params);
+	/** @brief Read and restore random number generator state from previous output */
+	bool read_randomizer(std::istream& input, std::shared_ptr<Random>& random);
 
-    // Read and restore the status of random number generater from previous output.
-    bool ReadRandomizer(std::istream& input, std::shared_ptr<Random>& random);
+	/** @brief Read simulation results back from output file */
+	bool read_radiance(std::istream& input, RunParams& params, std::shared_ptr<Random>& random, Radiance& out);
 
-    // Read result back from a output file.
-    bool ReadRadiance(std::istream& input, RunParams& params, std::shared_ptr<Random>& random, Radiance& out);
-
-    void SkipLine(std::istream& input, std::size_t num_lines = 1);
-
+	/** @brief Skip specified number of lines in input stream */
+	void skip_line(std::istream& input, std::size_t num_lines = 1);
 
 protected:
-    // Skip space or comment lines and return a data line.
-    std::string nextDataLine(std::istream& in);
+	// Skip space or comment lines and return a data line.
+	std::string next_dataline(std::istream& in);
 
-    // Check consistancy of input parameters.
-    bool checkInputParams(RunParams& params);
-
+	// Check consistancy of input parameters.
+	bool check_input_params(RunParams& params);
 
 private:
-    // Diffuse reflectance per unit area, per unit solid angle, per unit time [1/(cm² sr ps)]
-    vec3<double> ReadR_rat(std::istream& input, std::size_t Nr, std::size_t Na, std::size_t Nt);
+	// Diffuse reflectance per unit area, per unit solid angle, per unit time [1/(cmï¿½ sr ps)]
+	vec3<double> read_r_rat(std::istream& input, std::size_t Nr, std::size_t Na, std::size_t Nt);
 
-    // Diffuse reflectance per unit area, per unit solid angle [1/(cm² sr)]
-    vec2<double> ReadR_ra(std::istream& input, std::size_t Nr, std::size_t Na);
+	// Diffuse reflectance per unit area, per unit solid angle [1/(cmï¿½ sr)]
+	vec2<double> read_r_ra(std::istream& input, std::size_t Nr, std::size_t Na);
 
-    // Diffuse reflectance per unit solid angle, per unit time [1/sr ps]
-    vec2<double> ReadR_rt(std::istream& input, std::size_t Nr, std::size_t Nt);
+	// Diffuse reflectance per unit solid angle, per unit time [1/sr ps]
+	vec2<double> read_r_rt(std::istream& input, std::size_t Nr, std::size_t Nt);
 
-    // Diffuse reflectance per unit area, per unit time [1/cm² ps]
-    vec2<double> ReadR_at(std::istream& input, std::size_t Na, std::size_t Nt);
+	// Diffuse reflectance per unit area, per unit time [1/cmï¿½ ps]
+	vec2<double> read_r_at(std::istream& input, std::size_t Na, std::size_t Nt);
 
-    // Diffuse reflectance distribution per unit area [1/cm²]
-    vec1<double> ReadR_r(std::istream& input, std::size_t Nr);
+	// Diffuse reflectance distribution per unit area [1/cmï¿½]
+	vec1<double> read_r_r(std::istream& input, std::size_t Nr);
 
-    // Diffuse reflectance per unit solid angle [1/sr]
-    vec1<double> ReadR_a(std::istream& input, std::size_t Na);
+	// Diffuse reflectance per unit solid angle [1/sr]
+	vec1<double> read_r_a(std::istream& input, std::size_t Na);
 
-    // Diffuse reflectance per unit time [1/ps]
-    vec1<double> ReadR_t(std::istream& input, std::size_t Nt);
+	// Diffuse reflectance per unit time [1/ps]
+	vec1<double> read_r_t(std::istream& input, std::size_t Nt);
 
-    // Diffuse transmittance per unit area, per unit solid angle, per unit time [1/(cm² sr ps)]
-    vec3<double> ReadT_rat(std::istream& input, std::size_t Nr, std::size_t Na, std::size_t Nt);
+	// Diffuse transmittance per unit area, per unit solid angle, per unit time [1/(cmï¿½ sr ps)]
+	vec3<double> read_t_rat(std::istream& input, std::size_t Nr, std::size_t Na, std::size_t Nt);
 
-    // Diffuse transmittance per unit area, per unit solid angle [1/(cm² sr)]
-    vec2<double> ReadT_ra(std::istream& input, std::size_t Nr, std::size_t Na);
+	// Diffuse transmittance per unit area, per unit solid angle [1/(cmï¿½ sr)]
+	vec2<double> read_t_ra(std::istream& input, std::size_t Nr, std::size_t Na);
 
-    // Diffuse transmittance per unit solid angle, per unit time [1/sr ps]
-    vec2<double> ReadT_rt(std::istream& input, std::size_t Nr, std::size_t Nt);
+	// Diffuse transmittance per unit solid angle, per unit time [1/sr ps]
+	vec2<double> read_t_rt(std::istream& input, std::size_t Nr, std::size_t Nt);
 
-    // Diffuse transmittance per unit area, per unit time [1/cm² ps]
-    vec2<double> ReadT_at(std::istream& input, std::size_t Na, std::size_t Nt);
+	// Diffuse transmittance per unit area, per unit time [1/cmï¿½ ps]
+	vec2<double> read_t_at(std::istream& input, std::size_t Na, std::size_t Nt);
 
-    // Diffuse reflectance per unit area [1/cm²]
-    vec1<double> ReadT_r(std::istream& input, std::size_t Nr);
+	// Diffuse reflectance per unit area [1/cmï¿½]
+	vec1<double> read_t_r(std::istream& input, std::size_t Nr);
 
-    // Diffuse reflectance per unit solid angle [1/sr]
-    vec1<double> ReadT_a(std::istream& input, std::size_t Na);
+	// Diffuse reflectance per unit solid angle [1/sr]
+	vec1<double> read_t_a(std::istream& input, std::size_t Na);
 
-    // Diffuse reflectance per unit time [1/ps]
-    vec1<double> ReadT_t(std::istream& input, std::size_t Nt);
+	// Diffuse reflectance per unit time [1/ps]
+	vec1<double> read_t_t(std::istream& input, std::size_t Nt);
 
-    // Rate of absorption per unit volume, per unit time [1/(cm³ ps]
-    vec3<double> ReadA_rzt(std::istream& input, std::size_t Nr, std::size_t Nz, std::size_t Nt);
+	// Rate of absorption per unit volume, per unit time [1/(cmï¿½ ps]
+	vec3<double> read_a_rzt(std::istream& input, std::size_t Nr, std::size_t Nz, std::size_t Nt);
 
-    // Rate of absorption per unit volume [1/cm³]
-    vec2<double> ReadA_rz(std::istream& input, std::size_t Nr, std::size_t Nz);
+	// Rate of absorption per unit volume [1/cmï¿½]
+	vec2<double> read_a_rz(std::istream& input, std::size_t Nr, std::size_t Nz);
 
-    // Rate of absorption per unit time [1/(cm ps)]
-    vec2<double> ReadA_zt(std::istream& input, std::size_t Nz, std::size_t Nt);
+	// Rate of absorption per unit time [1/(cm ps)]
+	vec2<double> read_a_zt(std::istream& input, std::size_t Nz, std::size_t Nt);
 
-    // Absorption per unit depth [1/cm]
-    vec1<double> ReadA_z(std::istream& input, std::size_t Nz);
+	// Absorption per unit depth [1/cm]
+	vec1<double> read_a_z(std::istream& input, std::size_t Nz);
 
-    // Absorption per unit time [1/ps]
-    vec1<double> ReadA_t(std::istream& input, std::size_t Nt);
+	// Absorption per unit time [1/ps]
+	vec1<double> read_a_t(std::istream& input, std::size_t Nt);
 
-    // Ballistic absorption per unit depth, per unit time [1/(cm ps)]
-    vec2<double> ReadAb_zt(std::istream& input, std::size_t Nz, std::size_t Nt);
+	// Ballistic absorption per unit depth, per unit time [1/(cm ps)]
+	vec2<double> read_ab_zt(std::istream& input, std::size_t Nz, std::size_t Nt);
 
-    // Ballistic absorption per unit depth [1/cm]
-    vec1<double> ReadAb_z(std::istream& input, std::size_t Nz);
+	// Ballistic absorption per unit depth [1/cm]
+	vec1<double> read_ab_z(std::istream& input, std::size_t Nz);
 
 public:
-    operator std::istream& () { return *m_input; }
+	operator std::istream&() { return *m_input; }
 
 protected:
-    std::string m_filename;
-    std::unique_ptr<std::istream> m_input;
-
+	std::string m_filename;
+	std::unique_ptr<std::istream> m_input;
 };

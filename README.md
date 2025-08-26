@@ -63,7 +63,7 @@ Updated 2.0 version released recently by Scott Prahl, but version was not bumped
 - **Date**: 2025
 - **Author**: Maurits Lam
 - **Source**: <https://github.com/mhjlam/MCML>
-- **Changes**: Complete rewrite in C++20 with a modern C++ design, object-oriented architecture, improved performance and improved user interactivity and experience
+- **Changes**: Complete rewrite in C++20 with a modern C++ design, object-oriented architecture, improved performance and improved user interactivity
 
 ### Recommendations
 
