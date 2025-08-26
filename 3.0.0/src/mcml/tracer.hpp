@@ -3,6 +3,7 @@
 #include "mcml.hpp"
 
 #include <vector>
+#include <memory>
 
 
 template <typename T> using vec1 = std::vector<T>;

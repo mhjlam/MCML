@@ -7,6 +7,7 @@
  *	Version 2.0:    02/1996.
  *  Version 3.0:    03/2025.
  *
+ *	@authors
  *	Lihong Wang, Ph.D.
  *	Bioengineering Program
  *	Texas A&M University
@@ -27,6 +28,8 @@
  *  Utrecht University
  *  Utrecht, Netherlands
  *
+ *	@brief Monte Carlo Multi-Layer (MCML) simulation
+ *
  *	This program was based on:
  *	(1) The Pascal code written by Marleen Keijzer and Steven L. Jacques in this
  *  laboratory in 1989, which deals with multi-layered turbid mediums.
@@ -35,6 +38,8 @@
  *  S.L. Jacques, A.J. Welch, SPIE Institute Series Vol. IS 5 (1989), and by
  *  A.N. Witt, The Astrophysical Journal Supplement Series 35, 1-6 (1977).
  *
+ *	@section changelog Major Modifications
+ *	
  *	Major modifications in version 1.x include:
  *		- Conform to ANSI Standard C.
  *		- Removal of limit on number of array elements, because arrays in this
@@ -45,24 +50,32 @@
  *		- Grouping variables logically using structures.
  *		- Top-down design, keep each subroutine clear & short.
  *		- Reflectance and transmittance are angularly resolved.
+ *	
  *	Major modifications in version 2.0 include:
  *		- Allow interactive input of parameters.
  *		- Allow to score various simulation quantities.
- *		- g_time-resolved simulation.
+ *		- Time-resolved simulation.
  *		- Adjustable source position.
  *		- Support Isotropic source.
  *		- Simulation time control in addition to photon control.
  *		- Compute the standard errors of some physical quantities.
  *		- Allow continuation simulations to reduce standard errors.
+ *	
  *	Major modifications in version 3.0 include:
  *      - Conform to C++20 and modern C++ coding standards.
  *      - Using standard library containers and algorithms wherever applicable.
  *      - Using standard library random number generation facilities
  *        (Mersenne Twister instead of Delayed Fibonacci generator).
  *      - Reduce usage of pointers and raw arrays.
- *      - Object-oriented design.
- *      - JSON input/output files.
+ *      - Object-oriented design with SOLID principles.
+ *      - Template programming with concepts for type safety.
+ *      - Observer pattern for progress reporting.
+ *      - Consistent error handling with Result<T> type.
+ *      - JSON input/output files support.
+ *      - Enhanced documentation with Doxygen comments.
+ *      - Improved build system with cross-platform support.
  ****
+ *	@section units Physical Units
  *	Dimension of depth: centimeters (cm).
  *  Dimension of angle: steradians (sr).
  *	Dimension of time: picoseconds (ps).
@@ -76,6 +89,7 @@
 
 #include "random.hpp"
 #include "exception.hpp"
+#include "result.hpp"
 
 #include <limits>
 #include <random>
@@ -84,6 +98,8 @@
 #include <cstdint>
 #include <functional>
 #include <unordered_set>
+#include <concepts>
+#include <type_traits>
 
 
 template <typename T> using vec1 = std::vector<T>;
@@ -94,74 +110,143 @@ using unique_str = std::unordered_set<std::string>;
 
 constexpr std::streamsize max_size = std::numeric_limits<std::streamsize>::max();
 
+/**
+ * @brief C++20 concepts for type safety and better error messages
+ */
+namespace mcml::concepts {
+    /**
+     * @brief Concept for optical coefficients (non-negative values)
+     */
+    template<typename T>
+    concept OpticalCoefficient = std::floating_point<T> && requires(T t) {
+        { t >= T{0} } -> std::convertible_to<bool>;
+    };
+    
+    /**
+     * @brief Concept for refractive index (positive values)
+     */
+    template<typename T>
+    concept RefractiveIndex = std::floating_point<T> && requires(T t) {
+        { t > T{0} } -> std::convertible_to<bool>;
+    };
+    
+    /**
+     * @brief Concept for anisotropy factor g (-1 <= g <= 1)
+     */
+    template<typename T>
+    concept AnisotropyFactor = std::floating_point<T> && requires(T t) {
+        { t >= T{-1} && t <= T{1} } -> std::convertible_to<bool>;
+    };
+    
+    /**
+     * @brief Concept for probability values (0 <= p <= 1)
+     */
+    template<typename T>
+    concept Probability = std::floating_point<T> && requires(T t) {
+        { t >= T{0} && t <= T{1} } -> std::convertible_to<bool>;
+    };
+    
+    /**
+     * @brief Concept for positive integers
+     */
+    template<typename T>
+    concept PositiveInteger = std::integral<T> && requires(T t) {
+        { t > T{0} } -> std::convertible_to<bool>;
+    };
+}
 
-// Roulette survival chance
+
+/**
+ * @brief Physical and simulation constants
+ */
+
+/// Roulette survival chance when photon weight becomes too small
 constexpr double ROULETTE_SURVIVAL = 0.1;
 
-// Speed of light in vacuum (C) [cm/ps]
+/// Speed of light in vacuum [cm/ps]
 constexpr double SPEED_OF_LIGHT = 0.0299792458;
 
-// Inverse speed of light (1/C) [ps/cm]
+/// Inverse speed of light (1/C) [ps/cm]
 constexpr double SPEED_OF_LIGHT_INV = 33.35640952;
 
-// Split photon if true, otherwise statistical reflection.
+/// Split photon if true, otherwise statistical reflection
 constexpr bool PARTIAL_REFLECTION = false;
 
-// If 1 - cos(theta) <= COS_ZERO_TOLERANCE, abs(theta) <= 1e-6 rad.
-// If 1 + cos(theta) <= COS_ZERO_TOLERANCE, abs(PI - theta) <= 1e-6 rad.
+/// Tolerance for cos(theta) near 0 or PI
+/// If 1 - cos(theta) <= COS_0_TOLERANCE, abs(theta) <= 1e-6 rad
+/// If 1 + cos(theta) <= COS_0_TOLERANCE, abs(PI - theta) <= 1e-6 rad
 constexpr double COS_0_TOLERANCE = 1.0E-12;
 
-// If cos(theta) <= COS_90_TOLERANCE, theta >= PI/2 - 1e-6 rad.
+/// Tolerance for cos(theta) near PI/2
+/// If cos(theta) <= COS_90_TOLERANCE, theta >= PI/2 - 1e-6 rad
 constexpr double COS_90_TOLERANCE = 1.0E-6;
 
-
+/// Input file format version identifier
 constexpr std::string_view MCI_VERSION = "mcmli_3.0";
+
+/// Output file format version identifier  
 constexpr std::string_view MCO_VERSION = "mcmlo_3.0";
 
 
-/*********************************** Enums ************************************/
+/**
+ * @brief Enumeration types for simulation configuration
+ */
 
-enum class RunType
-{
-    StartNew,                           // Start a new simulation
-    Continue                            // Continue previous simulation
+/**
+ * @brief Simulation run type
+ */
+enum class RunType {
+    StartNew,                           ///< Start a new simulation
+    Continue                            ///< Continue previous simulation
 };
 
-enum class BeamType
-{
-    Pencil,                             // Pencil beam
-    Isotropic                           // Isotropic source
+/**
+ * @brief Light beam type for photon source
+ */
+enum class BeamType {
+    Pencil,                             ///< Pencil beam (collimated)
+    Isotropic                           ///< Isotropic source (uniform in all directions)
 };
 
-enum class ControlBit
-{
-    NumPhotons,                         // Photon number only
-    TimeLimit,                          // g_time limit only
-    Both                                // Both photon number and time limit
+/**
+ * @brief Control method for simulation termination
+ */
+enum class ControlBit {
+    NumPhotons,                         ///< Terminate by photon number only
+    TimeLimit,                          ///< Terminate by time limit only
+    Both                                ///< Terminate by both photon number and time limit
 };
 
-enum class FileFormat
-{
-    Ascii                              // Only ASCII is supported
+/**
+ * @brief File format for input/output
+ */
+enum class FileFormat {
+    Ascii                              ///< ASCII text format (only supported format)
 };
 
-enum class IoMode
-{
-    Read,                               // Read mode
-    Write                               // Write mode
+/**
+ * @brief I/O mode specification
+ */
+enum class IoMode {
+    Read,                               ///< Read mode for input
+    Write                               ///< Write mode for output
 };
 
-enum class ScaleMode
-{
-    Scale,                              // Scale results
-    Unscale                             // Unscale results
+/**
+ * @brief Scaling mode for results
+ */
+enum class ScaleMode {
+    Scale,                              ///< Scale results by photon count
+    Unscale                             ///< Unscale results (raw values)
 };
 
-enum class PunchMode
-{
-    ResetTimer,                         // Reset timer
-    TimeElapsed,                        // Return elapsed time since last reset
-    TimeElapsedStr,                     // Return time elapsed as string as well
+/**
+ * @brief Timer operation mode
+ */
+enum class PunchMode {
+    ResetTimer,                         ///< Reset timer to current time
+    TimeElapsed,                        ///< Return elapsed time since last reset
+    TimeElapsedStr,                     ///< Return time elapsed as formatted string
 };
 
 
@@ -271,26 +356,26 @@ struct Record
     // a:   azimuthal angle
     // t:   time-dependent, reflectance over time
 
-    bool R_rat{ false };                // Diffuse reflectance [1/(cm² sr ps)]
-    bool R_ra{ false };                 // Diffuse reflectance [1/(cm² sr)]
+    bool R_rat{ false };                // Diffuse reflectance [1/(cmï¿½ sr ps)]
+    bool R_ra{ false };                 // Diffuse reflectance [1/(cmï¿½ sr)]
     bool R_rt{ false };                 // Diffuse reflectance [1/sr ps]
-    bool R_at{ false };                 // Diffuse reflectance [1/(cm² ps)]
-    bool R_r{ false };                  // Diffuse reflectance [1/cm²]
+    bool R_at{ false };                 // Diffuse reflectance [1/(cmï¿½ ps)]
+    bool R_r{ false };                  // Diffuse reflectance [1/cmï¿½]
     bool R_a{ false };                  // Diffuse reflectance [1/sr]
     bool R_t{ false };                  // Diffuse reflectance [1/ps]
 
-    bool T_rat{ false };                // Diffuse transmittance [1/(cm² sr ps)]
-    bool T_ra{ false };                 // Diffuse transmittance [1/(cm² sr)]
+    bool T_rat{ false };                // Diffuse transmittance [1/(cmï¿½ sr ps)]
+    bool T_ra{ false };                 // Diffuse transmittance [1/(cmï¿½ sr)]
     bool T_rt{ false };                 // Diffuse transmittance [1/sr ps]
-    bool T_at{ false };                 // Diffuse transmittance [1/(cm² ps)]
-    bool T_r{ false };                  // Diffuse transmittance [1/cm²]
+    bool T_at{ false };                 // Diffuse transmittance [1/(cmï¿½ ps)]
+    bool T_r{ false };                  // Diffuse transmittance [1/cmï¿½]
     bool T_a{ false };                  // Diffuse transmittance [1/sr]
     bool T_t{ false };                  // Diffuse transmittance [1/ps]
 
-    bool A_rzt{ false };                // Absorption [1/(cm² sr ps)]
-    bool A_rz{ false };                 // Absorption [1/cm²]
-    bool A_zt{ false };                 // Absorption [1/(cm² ps)]
-    bool A_z{ false };                  // Absorption [1/cm²]
+    bool A_rzt{ false };                // Absorption [1/(cmï¿½ sr ps)]
+    bool A_rz{ false };                 // Absorption [1/cmï¿½]
+    bool A_zt{ false };                 // Absorption [1/(cmï¿½ ps)]
+    bool A_z{ false };                  // Absorption [1/cmï¿½]
     bool A_t{ false };                  // Absorption [1/ps]
 };
 
@@ -332,11 +417,11 @@ struct Radiance
 {
     /* Reflectance */
 
-    vec3<double> R_rat; // Diffuse reflectance per unit area, per unit solid angle, per unit time [1/(cm² sr ps)]
-    vec2<double> R_ra;  // Diffuse reflectance per unit area, per unit solid angle [1/(cm² sr)]
+    vec3<double> R_rat; // Diffuse reflectance per unit area, per unit solid angle, per unit time [1/(cmï¿½ sr ps)]
+    vec2<double> R_ra;  // Diffuse reflectance per unit area, per unit solid angle [1/(cmï¿½ sr)]
     vec2<double> R_rt;  // Diffuse reflectance per unit solid angle, per unit time [1/sr ps]
-    vec2<double> R_at;  // Diffuse reflectance per unit area, per unit time [1/cm² ps]
-    vec1<double> R_r;   // Diffuse reflectance per unit area [1/cm²]
+    vec2<double> R_at;  // Diffuse reflectance per unit area, per unit time [1/cmï¿½ ps]
+    vec1<double> R_r;   // Diffuse reflectance per unit area [1/cmï¿½]
     vec1<double> R_a;   // Diffuse reflectance per unit solid angle [1/sr]
     vec1<double> R_t;   // Diffuse reflectance per unit time [1/ps]
 
@@ -349,11 +434,11 @@ struct Radiance
 
     /* Transmittance */
 
-    vec3<double> T_rat; // Diffuse transmittance per unit area, per unit solid angle, per unit time [1/(cm² sr ps)]
-    vec2<double> T_ra;  // Diffuse transmittance per unit area, per unit solid angle [1/(cm² sr)]
+    vec3<double> T_rat; // Diffuse transmittance per unit area, per unit solid angle, per unit time [1/(cmï¿½ sr ps)]
+    vec2<double> T_ra;  // Diffuse transmittance per unit area, per unit solid angle [1/(cmï¿½ sr)]
     vec2<double> T_rt;  // Diffuse transmittance per unit solid angle, per unit time [1/sr ps]
-    vec2<double> T_at;  // Diffuse transmittance per unit area, per unit time [1/cm² ps]
-    vec1<double> T_r;	// Diffuse transmittance per unit area [1/cm²]
+    vec2<double> T_at;  // Diffuse transmittance per unit area, per unit time [1/cmï¿½ ps]
+    vec1<double> T_r;	// Diffuse transmittance per unit area [1/cmï¿½]
     vec1<double> T_a;	// Diffuse transmittance per unit solid angle [1/sr]
     vec1<double> T_t;	// Diffuse transmittance per unit time [1/ps]
 
@@ -365,8 +450,8 @@ struct Radiance
 
     /* Absorption */
 
-    vec3<double> A_rzt; // Rate of absorption per unit volume, per unit time [1/(cm³ ps]
-    vec2<double> A_rz;	// Rate of absorption per unit volume [1/cm³]
+    vec3<double> A_rzt; // Rate of absorption per unit volume, per unit time [1/(cmï¿½ ps]
+    vec2<double> A_rz;	// Rate of absorption per unit volume [1/cmï¿½]
     vec2<double> A_zt;	// Rate of absorption per unit time [1/(cm ps)]
     vec1<double> A_z;	// Absorption per unit depth [1/cm]
     vec1<double> A_t;	// Absorption per unit time [1/ps]

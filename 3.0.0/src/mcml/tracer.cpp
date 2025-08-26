@@ -168,14 +168,14 @@ void Tracer::Drop(Photon& photon)
     photon.weight -= dwa;
 
     // Compute array indices
-    std::size_t iz, ir, it;
+    std::size_t iz = 0, ir = 0, it = 0;
 
     if (m_params.record.A_rzt || m_params.record.A_zt || m_params.record.A_z || m_params.record.A_rz) {
         if (photon.position.z >= m_params.grid.max_z) {
             iz = m_params.grid.num_z - 1;
         }
         else {
-            iz = static_cast<short>(photon.position.z / m_params.grid.step_z);
+            iz = static_cast<std::size_t>(photon.position.z / m_params.grid.step_z);
         }
     }
 
@@ -184,7 +184,7 @@ void Tracer::Drop(Photon& photon)
             it = m_params.grid.num_t - 1;
         }
         else {
-            it = static_cast<short>(std::floor(photon.flight_time / m_params.grid.step_t));
+            it = static_cast<std::size_t>(std::floor(photon.flight_time / m_params.grid.step_t));
         }
     }
 
@@ -198,7 +198,7 @@ void Tracer::Drop(Photon& photon)
                 ir = m_params.grid.num_r - 1;
             }
             else {
-                ir = static_cast<short>(temp / m_params.grid.step_r);
+                ir = static_cast<std::size_t>(temp / m_params.grid.step_r);
             }
         }
         if (m_params.record.A_rzt) {
@@ -294,7 +294,6 @@ double Tracer::Fresnel(double eta_i, double eta_t, double cos_ai, double& cos_at
             (cos_am * cos_am + cos_ap * cos_ap) /
             (sin_ap * sin_ap * cos_am * cos_am);
     }
-    return 0.0;
 }
 
 void Tracer::RecordReflectance(Photon& photon, double reflectance)
@@ -303,14 +302,14 @@ void Tracer::RecordReflectance(Photon& photon, double reflectance)
     double y = photon.position.y;
 
     // Index to r & angle
-    std::size_t ir, ia, it;
+    std::size_t ir = 0, ia = 0, it = 0;
 
     if (m_params.record.R_rat || m_params.record.R_at || m_params.record.R_rt || m_params.record.R_t) {
         if (photon.flight_time >= m_params.grid.max_t) {
             it = m_params.grid.num_t - 1;
         }
         else {
-            it = static_cast<short>(std::floor(photon.flight_time / m_params.grid.step_t));
+            it = static_cast<std::size_t>(std::floor(photon.flight_time / m_params.grid.step_t));
         }
     }
 
@@ -322,11 +321,12 @@ void Tracer::RecordReflectance(Photon& photon, double reflectance)
                 ir = m_params.grid.num_r - 1;
             }
             else {
-                ir = static_cast<short>(temp / m_params.grid.step_r);
+                ir = static_cast<std::size_t>(temp / m_params.grid.step_r);
             }
         }
         if (m_params.record.R_rat || m_params.record.R_at || m_params.record.R_ra || m_params.record.R_a) {
-            if ((ia = static_cast<short>(std::acos(-photon.direction.z) / m_params.grid.step_a) > m_params.grid.num_a - 1)) {
+            ia = static_cast<std::size_t>(std::acos(-photon.direction.z) / m_params.grid.step_a);
+            if (ia > m_params.grid.num_a - 1) {
                 ia = m_params.grid.num_a - 1;
             }
         }
@@ -372,13 +372,13 @@ void Tracer::RecordTransmittance(Photon& photon, double reflectance)
     double y = photon.position.y;
 
     // Index to r & angle
-    std::size_t ir, ia, it;
+    std::size_t ir = 0, ia = 0, it = 0;
     if (m_params.record.T_rat || m_params.record.T_at || m_params.record.T_rt || m_params.record.T_t) {
         if (photon.flight_time >= m_params.grid.max_t) {
             it = m_params.grid.num_t - 1;
         }
         else {
-            it = static_cast<short>(std::floor(photon.flight_time / m_params.grid.step_t));
+            it = static_cast<std::size_t>(std::floor(photon.flight_time / m_params.grid.step_t));
         }
     }
 
@@ -390,11 +390,12 @@ void Tracer::RecordTransmittance(Photon& photon, double reflectance)
                 ir = m_params.grid.num_r - 1;
             }
             else {
-                ir = (short)(temp / m_params.grid.step_r);
+                ir = static_cast<std::size_t>(temp / m_params.grid.step_r);
             }
         }
         if (m_params.record.T_rat || m_params.record.T_at || m_params.record.T_ra || m_params.record.T_a) {
-            if ((ia = static_cast<short>(std::acos(photon.direction.z) / m_params.grid.step_a) > m_params.grid.num_a - 1)) {
+            ia = static_cast<std::size_t>(std::acos(photon.direction.z) / m_params.grid.step_a);
+            if (ia > m_params.grid.num_a - 1) {
                 ia = m_params.grid.num_a - 1;
             }
         }

@@ -90,7 +90,7 @@ bool Reader::ReadParams(std::istream& input, RunParams& params)
         }
     } while (!endOfRuns());
 
-    params.num_runs = run_index;
+    params.num_runs = static_cast<std::size_t>(run_index);
 
     // Restore file position
     input.seekg(file_pos, std::ios::beg);
@@ -211,7 +211,7 @@ bool Reader::ReadGrid(std::istream& in, Grid& out)
     return true;
 }
 
-bool Reader::ReadRecord(std::istream& input, RunParams& params, Record& record)
+bool Reader::ReadRecord(std::istream& input, [[maybe_unused]] RunParams& params, Record& record)
 {
     std::string buf = nextDataLine(input);
     if (buf.empty()) {
@@ -302,7 +302,7 @@ bool Reader::ReadRecord(std::istream& input, RunParams& params, Record& record)
 
 bool Reader::ReadWeight(std::istream& in, double& out)
 {
-    auto [success, weight] = read<double>(in, "Invalid weight threshold", [](const double& w) {
+    auto [success, weight] = read_single<double>(in, "Invalid weight threshold", [](const double& w) {
         return (w > 0.0 && w < 1.0);
     });
     if (!success) { return false; }
@@ -313,7 +313,7 @@ bool Reader::ReadWeight(std::istream& in, double& out)
 
 bool Reader::ReadSeed(std::istream& in, long& out)
 {
-    auto [success, seed] = read<long>(in, "Invalid random number seed", [](const long& s) {
+    auto [success, seed] = read_single<long>(in, "Invalid random number seed", [](const long& s) {
         return (s > 0 && s < std::numeric_limits<long>::max());
     });
     if (!success) { return false; }
@@ -398,10 +398,10 @@ bool Reader::ReadTarget(std::istream& input, RunParams& params, Target& out, boo
             target.control_bit = ControlBit::NumPhotons;
 
             if (add) {
-                target.photons_remaining += num_photons;
+                target.photons_remaining += static_cast<std::size_t>(num_photons);
             }
             else {
-                target.photons_limit = num_photons;
+                target.photons_limit = static_cast<std::size_t>(num_photons);
             }
         }
         else {
@@ -462,11 +462,11 @@ bool Reader::ReadTarget(std::istream& input, RunParams& params, Target& out, boo
             target.control_bit = ControlBit::Both;
 
             if (add) {
-                target.photons_remaining += num_photons;
+                target.photons_remaining += static_cast<std::size_t>(num_photons);
                 target.time_remaining += hours * 3600 + minutes * 60;
             }
             else {
-                target.photons_limit = num_photons;
+                target.photons_limit = static_cast<std::size_t>(num_photons);
                 target.time_limit = hours * 3600 + minutes * 60;
             }
         }
@@ -495,7 +495,7 @@ bool Reader::ReadTarget(std::istream& input, RunParams& params, Target& out, boo
     return true;
 }
 
-bool Reader::ReadSource(std::istream& input, RunParams& params, LightSource& out)
+bool Reader::ReadSource([[maybe_unused]] std::istream& input, RunParams& params, [[maybe_unused]] LightSource& out)
 {
     // Compute the index to layer according to the z coordinate. 
     // If the z is on an interface between layers, the returned index will point to the upper layer.
@@ -630,7 +630,7 @@ bool Reader::ReadRunParams(std::istream& input, RunParams& params)
 
     // Compute the critical angles for total internal reflection according to the 
     // relative refractive index of the layer.
-    for (short i = 1; i <= params.num_layers; i++) {
+    for (std::size_t i = 1; i <= params.num_layers; i++) {
         double eta_0 = params.layers[i - 1].eta;
         double eta_1 = params.layers[i].eta;
         double eta_2 = params.layers[i + 1].eta;
@@ -651,7 +651,7 @@ bool Reader::ReadRandomizer(std::istream& input, std::shared_ptr<Random>& random
         std::getline(input, buf);
     } while (buf[0] != '#');
 
-    for (int i = 0; i < status.size(); i++) {
+    for (std::size_t i = 0; i < status.size(); i++) {
         input >> status[i];
     }
 
@@ -768,7 +768,7 @@ std::string Reader::nextDataLine(std::istream& in)
 
 bool Reader::checkInputParams(RunParams& params)
 {
-    for (int i = 0; i <= params.num_layers + 1; i++) {
+    for (std::size_t i = 0; i <= params.num_layers + 1; i++) {
         // Find index of the medium name in the medium list.
         auto it = std::ranges::find_if(params.mediums, [&](const Layer& m) {
             return std::ranges::any_of(params.layers, [&](const Layer& l) {
@@ -780,7 +780,7 @@ bool Reader::checkInputParams(RunParams& params)
             return std::cerr << "Invalid medium name of layer " << i << ".\n", 0;
         }
 
-        std::size_t index = std::distance(params.mediums.begin(), it);
+        std::size_t index = static_cast<std::size_t>(std::distance(params.mediums.begin(), it));
         params.layers[i].eta = params.mediums[index].eta;
         params.layers[i].mu_a = params.mediums[index].mu_a;
         params.layers[i].mu_s = params.mediums[index].mu_s;
@@ -799,9 +799,9 @@ bool Reader::checkInputParams(RunParams& params)
         return std::cerr << "Source is outside of the last layer.\n", false;
     }
     else {
-        params.source.layer_index =
+        params.source.layer_index = static_cast<std::size_t>(
             std::ranges::lower_bound(params.layers, params.source.z, {}, &Layer::z1) -
-            params.layers.begin();
+            params.layers.begin());
     }
 
     // Check the medium name and z coordinate of the source.
@@ -826,7 +826,6 @@ vec3<double> Reader::ReadR_rat(std::istream& input, std::size_t Nr, std::size_t 
     nextDataLine(input);
     vec3<double> R_rat(Nr, vec2<double>(Na, vec1<double>(Nt)));
 
-    std::size_t i = 0;
     for (std::size_t ir = 0; ir < Nr; ir++) {
         for (std::size_t ia = 0; ia < Na; ia++) {
             for (std::size_t it = 0; it < Nt; it++) {
@@ -855,7 +854,6 @@ vec2<double> Reader::ReadR_rt(std::istream& input, std::size_t Nr, std::size_t N
     nextDataLine(input);
     vec2<double> R_rt(Nr, vec1<double>(Nt));
 
-    std::size_t i = 0;
     for (std::size_t ir = 0; ir < Nr; ir++) {
         for (std::size_t it = 0; it < Nt; it++) {
             input >> R_rt[ir][it];
@@ -869,7 +867,6 @@ vec2<double> Reader::ReadR_at(std::istream& input, std::size_t Na, std::size_t N
     nextDataLine(input);
     vec2<double> R_at(Na, vec1<double>(Nt));
 
-    std::size_t i = 0;
     for (std::size_t ia = 0; ia < Na; ia++) {
         for (std::size_t it = 0; it < Nt; it++) {
             input >> R_at[ia][it];
@@ -916,7 +913,6 @@ vec3<double> Reader::ReadT_rat(std::istream& input, std::size_t Nr, std::size_t 
     nextDataLine(input);
     vec3<double> T_rat(Nr, vec2<double>(Na, vec1<double>(Nt)));
 
-    std::size_t i = 0;
     for (std::size_t ir = 0; ir < Nr; ir++) {
         for (std::size_t ia = 0; ia < Na; ia++) {
             for (std::size_t it = 0; it < Nt; it++) {
@@ -945,7 +941,6 @@ vec2<double> Reader::ReadT_rt(std::istream& input, std::size_t Nr, std::size_t N
     nextDataLine(input);
     vec2<double> T_rt(Nr, vec1<double>(Nt));
 
-    std::size_t i = 0;
     for (std::size_t ir = 0; ir < Nr; ir++) {
         for (std::size_t it = 0; it < Nt; it++) {
             input >> T_rt[ir][it];
@@ -959,7 +954,6 @@ vec2<double> Reader::ReadT_at(std::istream& input, std::size_t Na, std::size_t N
     nextDataLine(input);
     vec2<double> T_at(Na, vec1<double>(Nt));
 
-    std::size_t i = 0;
     for (std::size_t ia = 0; ia < Na; ia++) {
         for (std::size_t it = 0; it < Nt; it++) {
             input >> T_at[ia][it];
@@ -1006,7 +1000,6 @@ vec3<double> Reader::ReadA_rzt(std::istream& input, std::size_t Nr, std::size_t 
     nextDataLine(input);
     vec3<double> A_rzt(Nr, vec2<double>(Nz, vec1<double>(Nt)));
 
-    std::size_t i = 0;
     for (std::size_t ir = 0; ir < Nr; ir++) {
         for (std::size_t iz = 0; iz < Nz; iz++) {
             for (std::size_t it = 0; it < Nt; it++) {
@@ -1022,7 +1015,6 @@ vec2<double> Reader::ReadA_rz(std::istream& input, std::size_t Nr, std::size_t N
     nextDataLine(input);
     vec2<double> A_rz(Nr, vec1<double>(Nz));
 
-    std::size_t i = 0;
     for (std::size_t ir = 0; ir < Nr; ir++) {
         for (std::size_t iz = 0; iz < Nz; iz++) {
             input >> A_rz[ir][iz];
@@ -1036,7 +1028,6 @@ vec2<double> Reader::ReadA_zt(std::istream& input, std::size_t Nz, std::size_t N
     nextDataLine(input);
     vec2<double> A_zt(Nz, vec1<double>(Nt));
 
-    std::size_t i = 0;
     for (std::size_t iz = 0; iz < Nz; iz++) {
         for (std::size_t it = 0; it < Nt; it++) {
             input >> A_zt[iz][it];
@@ -1072,7 +1063,6 @@ vec2<double> Reader::ReadAb_zt(std::istream& input, std::size_t Nz, std::size_t 
     nextDataLine(input);
     vec2<double> Ab_zt(Nz, vec1<double>(Nt));
 
-    std::size_t i = 0;
     for (std::size_t iz = 0; iz < Nz; iz++) {
         for (std::size_t it = 0; it < Nt; it++) {
             input >> Ab_zt[iz][it];

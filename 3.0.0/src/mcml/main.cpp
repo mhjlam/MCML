@@ -60,23 +60,23 @@ static void about()
 
 static void help()
 {
-    std::cout << "  A = About MCML." << std::endl;
-    std::cout << "  R = Run an input file non-interactively." << std::endl;
-    std::cout << "  M = Input and modify parameters of a file (the first run only)." << std::endl;
-    std::cout << "  I = Input parameters interactively." << std::endl;
-    std::cout << "  C = Continue a previous simulation." << std::endl;
-    std::cout << "  Q = Quit from the program." << std::endl;
+    std::cout << "  a = About MCML." << std::endl;
+    std::cout << "  r = Run an input file non-interactively." << std::endl;
+    std::cout << "  m = Input and modify parameters of a file (the first run only)." << std::endl;
+    std::cout << "  i = Input parameters interactively." << std::endl;
+    std::cout << "  c = Continue a previous simulation." << std::endl;
+    std::cout << "  q = Quit from the program." << std::endl;
     std::cout << "  * Commands here are not case-sensitive." << std::endl;
 }
 
 static void quit()
 {
-    std::cout << "Do you really want to quit MCML? (Y/N): ";
+    std::cout << "Do you really want to quit MCML? (y/n): ";
 
     char command;
     do {
         std::cin.get(command);
-        command = std::toupper(command);
+        command = static_cast<char>(std::toupper(static_cast<unsigned char>(command)));
     } while (command != 'Y' && command != 'N');
 
     if (command == 'Y') {
@@ -102,26 +102,65 @@ int main(int argc, char* argv[])
 
             char command = '\0';
             while (true) {
-                std::cout << std::endl << "> Main menu (H for help) => ";
+                std::cout << std::endl << "> Main menu (h for help) => ";
 
                 do {
                     // Read input
-                    std::cin.get(command);
-                    command = std::toupper(command);
+                    if (!std::cin.get(command)) {
+                        // EOF reached - exit program gracefully
+                        std::exit(0);
+                    }
+                    command = static_cast<char>(std::toupper(static_cast<unsigned char>(command)));
                 } while (command == '\0' || command == '\n');
 
-                // Clear buffer
-                std::cin.ignore(max_size, '\n');
-
                 switch (command) {
-                    case 'A': { about(); break; }
-                    case 'R': { simulator->Simulate(); break; }
-                    case 'M': { simulator->InteractiveEdit(); break; }
-                    case 'I': { simulator->Interactive(); break; }
-                    case 'C': { simulator->Resume(); break; }
-                    case 'H': { help(); break; }
-                    case 'Q': { quit(); break; }
-                    default: { std::cerr << "Unknown command." << std::endl; }
+                    case 'A': { 
+                        // Clear buffer before calling about()
+                        std::cin.ignore(max_size, '\n');
+                        about(); 
+                        break; 
+                    }
+                    case 'R': { 
+                        // Clear buffer before calling simulate
+                        std::cin.ignore(max_size, '\n');
+                        simulator->Simulate(); 
+                        break; 
+                    }
+                    case 'M': { 
+                        // Clear buffer before interactive edit
+                        std::cin.ignore(max_size, '\n');
+                        simulator->InteractiveEdit(); 
+                        break; 
+                    }
+                    case 'I': { 
+                        // Clear buffer before interactive mode
+                        std::cin.ignore(max_size, '\n');
+                        simulator->Interactive(); 
+                        break; 
+                    }
+                    case 'C': { 
+                        // Clear buffer before resume
+                        std::cin.ignore(max_size, '\n');
+                        simulator->Resume(); 
+                        break; 
+                    }
+                    case 'H': { 
+                        // Clear buffer before help
+                        std::cin.ignore(max_size, '\n');
+                        help(); 
+                        break; 
+                    }
+                    case 'Q': { 
+                        // Clear buffer before quit
+                        std::cin.ignore(max_size, '\n');
+                        quit(); 
+                        break; 
+                    }
+                    default: { 
+                        // Clear buffer for unknown commands
+                        std::cin.ignore(max_size, '\n');
+                        puts("...Unknown command"); 
+                    }
                 }
             }
         }

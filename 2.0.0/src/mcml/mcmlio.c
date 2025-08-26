@@ -318,6 +318,12 @@ FILE *GetFile(char *Fname, char *Version)
         printf("Specify filename (or . to quit to main menu):");
         fgets(Fname, STRLEN, stdin);
 
+        /* Replace newline with null terminator */
+        size_t len = strlen(Fname);
+        if (len > 0 && Fname[len - 1] == '\n') {
+            Fname[len - 1] = '\0';
+        }
+
         /* terminate with a period. */
         if (strlen(Fname) == 1 && Fname[0] == '.')
             return (NULL);      /* return a NULL pointer if '.' entered. */

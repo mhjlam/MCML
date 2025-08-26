@@ -16,12 +16,12 @@ private:
 
 public:
     // Initializes with a seed
-    explicit Random(long seed = 0) : rng(seed), dist(0.0, 1.0) {}
+    explicit Random(long seed = 0) : rng(static_cast<unsigned int>(seed)), dist(0.0, 1.0) {}
 
     // Re-seed the generator
     void seed(long new_seed)
     {
-        rng.seed(new_seed);
+        rng.seed(static_cast<unsigned int>(new_seed));
     }
 
     // Generate a random number in [0,1)

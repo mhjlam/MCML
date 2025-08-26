@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mcml.hpp"
+#include "observer.hpp"
 
 #include <memory>
 
@@ -31,6 +32,11 @@ public:
 
     // Read params interactively, then do one run
     void Interactive();
+
+    // Observer pattern methods
+    void add_observer(std::shared_ptr<mcml::SimulationObserver> observer);
+    void remove_observer(const std::shared_ptr<mcml::SimulationObserver>& observer);
+    const mcml::ProgressInfo& progress() const;
 
     // Read params interactively, show edit menu, then do one run
     void InteractiveEdit();
@@ -65,11 +71,15 @@ private:
     void editMediums();
     void editOutput();
     void editGrid();
+    void editGridSpacing();  // Change dz, dr, dt only (for 'd' command)
+    void editGridSize();     // Change nz, nr, nt, na only (for 'n' command)
     void editRecord();
     void editWeight();
     void editLayers();
     void editTarget();
     void editSource();
+    void editRandomSeed();
+    void editSourcePosition();
 
     void showEditMenuHelp();
 
@@ -94,4 +104,7 @@ private:
     std::shared_ptr<Random> m_random;
 
     std::shared_ptr<Tracer> m_tracer;
+    
+    // Observer pattern for progress reporting
+    mcml::SimulationSubject m_observer_subject;
 };

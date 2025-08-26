@@ -31,6 +31,12 @@ public:
     // Read the grid separation parameters (z, r, t) and number of grid lines (z, r, t, and alpha).
     bool ReadGrid(std::istream& in, Grid& out) override;
 
+    // Read only the grid separation parameters (dz, dr, dt).
+    bool ReadGridSpacing(std::istream& in, Grid& out);
+
+    // Read only the number of grid lines (nz, nr, nt, na).
+    bool ReadGridSize(std::istream& in, Grid& out);
+
     // Read which quantity is to be scored.
     bool ReadRecord(std::istream& in, RunParams& params, Record& out) override;
 

@@ -36,7 +36,7 @@ void Writer::WriteMediums(std::ostream& output, RunParams& params)
 
     output << std::format("{:<24} {:>8} {:>8} {:>8} {:>8}", "# Medium name", "eta", "mu_a", "mu_s", "g") << std::endl;
 
-    for (int i = 0; i < params.mediums.size(); i++) {
+    for (std::size_t i = 0; i < params.mediums.size(); i++) {
         Layer s = params.mediums[i];
         output << std::format("{:<4}{:<20} {:>8.2f} {:>8.2f} {:>8.2f} {:>8.2f}",
                               "", s.name, s.eta, s.mu_a, s.mu_s, s.g) << std::endl;
@@ -120,7 +120,7 @@ void Writer::WriteLayers(std::ostream& output, RunParams& params)
 
     output << std::format("{:<24} {:<8}", "# Layer name", "thickness") << std::endl;
 
-    for (int i = 0; i <= params.num_layers + 1; i++) {
+    for (std::size_t i = 0; i <= params.num_layers + 1; i++) {
         Layer s;
 
         s = params.layers[i];
@@ -209,7 +209,7 @@ void Writer::WriteRandomizer(std::ostream& output, std::shared_ptr<Random> rando
 
     output << "# PRNG state:\n";
 
-    for (int i = 0; i < status.size(); i++) {
+    for (std::size_t i = 0; i < status.size(); i++) {
         if (i % 5) {
             output << std::format("{:14d}", status[i]);
         }
@@ -309,7 +309,7 @@ void Writer::WriteA_rzt(std::ostream& output, std::size_t Nr, std::size_t Nz, st
 {
     WriteA_zt(output, Nz, Nt, radiance);
 
-    output << "# A[r][z][t]. [1/(cm³ ps)]\n"
+    output << "# A[r][z][t]. [1/(cmï¿½ ps)]\n"
         "# A[0][0][0], [0][0][1],..[0][0][nt-1]\n"
         "# A[0][1][0], [0][1][1],..[0][1][nt-1]\n"
         "# ...\n"
@@ -346,7 +346,7 @@ void Writer::WriteA_rz(std::ostream& output, std::size_t Nr, std::size_t Nz, Rad
 {
     WriteA_z(output, Nz, radiance);
 
-    output << "# A[r][z]. [1/cm³]\n"
+    output << "# A[r][z]. [1/cmï¿½]\n"
         "# A[0][0], [0][1],..[0][nz-1]\n"
         "# ...\n"
         "# A[nr-1][0], [nr-1][1],..[nr-1][nz-1]\n"
@@ -411,7 +411,7 @@ void Writer::WriteA_t(std::ostream& output, std::size_t Nt, Radiance& radiance)
 
 void Writer::WriteR_rat(std::ostream& output, std::size_t Nr, std::size_t Na, std::size_t Nt, Radiance& radiance)
 {
-    output << "# Rd[r][a][t]. [1/(cm² sr ps)]\n"
+    output << "# Rd[r][a][t]. [1/(cmï¿½ sr ps)]\n"
         "# Rd[0][0][0], [0][0][1],..[0][0][nt-1]\n"
         "# Rd[0][1][0], [0][1][1],..[0][1][nt-1]\n"
         "# ...\n"
@@ -435,7 +435,7 @@ void Writer::WriteR_rat(std::ostream& output, std::size_t Nr, std::size_t Na, st
 
 void Writer::WriteR_ra(std::ostream& output, std::size_t Nr, std::size_t Na, Radiance& radiance)
 {
-    output << "# Rd[r][angle]. [1/(cm² sr)].\n"
+    output << "# Rd[r][angle]. [1/(cmï¿½ sr)].\n"
         "# Rd[0][0], [0][1],..[0][na-1]\n"
         "# Rd[1][0], [1][1],..[1][na-1]\n"
         "# ...\n"
@@ -456,7 +456,7 @@ void Writer::WriteR_ra(std::ostream& output, std::size_t Nr, std::size_t Na, Rad
 
 void Writer::WriteR_rt(std::ostream& output, std::size_t Nr, std::size_t Nt, Radiance& radiance)
 {
-    output << "# Rd[r][t]. [1/(cm² ps)]\n"
+    output << "# Rd[r][t]. [1/(cmï¿½ ps)]\n"
         "# Rd[0][0], [0][1],..[0][nt-1]\n"
         "# Rd[0][0], [0][1],..[0][nt-1]\n"
         "# ...\n"
@@ -500,7 +500,7 @@ void Writer::WriteR_at(std::ostream& output, std::size_t Na, std::size_t Nt, Rad
 
 void Writer::WriteR_r(std::ostream& output, std::size_t Nr, Radiance& radiance)
 {
-    output << "R_r # Rd[0], [1],..Rd[nr-1]. [1/cm²]\n";
+    output << "R_r # Rd[0], [1],..Rd[nr-1]. [1/cmï¿½]\n";
 
     for (std::size_t ir = 0; ir < Nr; ir++) {
         //output << std::format("{:{}.10f}\n", radiance.R_r[ir], 15);
@@ -534,7 +534,7 @@ void Writer::WriteR_t(std::ostream& output, std::size_t Nt, Radiance& radiance)
 
 void Writer::WriteT_rat(std::ostream& output, std::size_t Nr, std::size_t Na, std::size_t Nt, Radiance& radiance)
 {
-    output << "# Td[r][a][t]. [1/(cm² sr ps)]\n"
+    output << "# Td[r][a][t]. [1/(cmï¿½ sr ps)]\n"
         "# Td[0][0][0], [0][0][1],..[0][0][nt-1]\n"
         "# Td[0][1][0], [0][1][1],..[0][1][nt-1]\n"
         "# ...\n"
@@ -558,11 +558,11 @@ void Writer::WriteT_rat(std::ostream& output, std::size_t Nr, std::size_t Na, st
 
 void Writer::WriteT_ra(std::ostream& output, std::size_t Nr, std::size_t Na, Radiance& radiance)
 {
-    output << "# Td[r][angle]. [1/(cm² sr)].\n",
-        "# Td[0][0], [0][1],..[0][na-1]\n",
-        "# Td[1][0], [1][1],..[1][na-1]\n",
-        "# ...\n",
-        "# Td[nr-1][0], [nr-1][1],..[nr-1][na-1]\n",
+    output << "# Td[r][angle]. [1/(cmï¿½ sr)].\n" <<
+        "# Td[0][0], [0][1],..[0][na-1]\n" <<
+        "# Td[1][0], [1][1],..[1][na-1]\n" <<
+        "# ...\n" <<
+        "# Td[nr-1][0], [nr-1][1],..[nr-1][na-1]\n" <<
         "T_ra\n";
 
     for (std::size_t ir = 0; ir < Nr; ir++) {
@@ -579,7 +579,7 @@ void Writer::WriteT_ra(std::ostream& output, std::size_t Nr, std::size_t Na, Rad
 
 void Writer::WriteT_rt(std::ostream& output, std::size_t Nr, std::size_t Nt, Radiance& radiance)
 {
-    output << "# Td[r][t]. [1/(cm² ps)]\n"
+    output << "# Td[r][t]. [1/(cmï¿½ ps)]\n"
         "# Td[0][0], [0][1],..[0][nt-1]\n"
         "# Td[0][0], [0][1],..[0][nt-1]\n"
         "# ...\n"
@@ -623,7 +623,7 @@ void Writer::WriteT_at(std::ostream& output, std::size_t Na, std::size_t Nt, Rad
 
 void Writer::WriteT_r(std::ostream& output, std::size_t Nr, Radiance& radiance)
 {
-    output << "T_r # Td[0], [1],..Td[nr-1]. [1/cm²]\n";
+    output << "T_r # Td[0], [1],..Td[nr-1]. [1/cmï¿½]\n";
 
     for (std::size_t ir = 0; ir < Nr; ir++) {
         output << std::format("{:{}.10f}\n", radiance.T_r[ir], 15);

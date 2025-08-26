@@ -1,5 +1,6 @@
 #pragma once
 
+#include "reader.tpp"  // For concept definitions
 
 #include <tuple>
 #include <ranges>
@@ -12,12 +13,6 @@
 #include "cin_reader.hpp"
 #include "reader_util.hpp"
 
-
-static std::string trim(const std::string& str) {
-    auto start = str.find_first_not_of(" \t\n\r");
-    auto end = str.find_last_not_of(" \t\n\r");
-    return (start == std::string::npos) ? "" : str.substr(start, end - start + 1);
-}
 
 static std::string next_line_in(std::istream& in, bool* aborted)
 {
@@ -70,8 +65,10 @@ static std::string default_error(auto type) {
 }
 
 
-template <typename... Ts> std::tuple<bool, Ts...>
-read_in(std::istream& in, std::string prompt, std::string error, bool allow_opt, std::function<bool(const std::tuple<Ts...>&)> cond)
+template <typename... Ts, typename Predicate = std::nullptr_t> 
+requires (mcml::concepts::Predicate<Predicate, const std::tuple<Ts...>&> || std::same_as<Predicate, std::nullptr_t>)
+std::tuple<bool, Ts...>
+read_in(std::istream& in, std::string prompt, std::string error, bool allow_opt, Predicate cond = nullptr)
 {
     // Set prompt if not provided
     if (prompt.empty()) {
@@ -133,12 +130,17 @@ read_in(std::istream& in, std::string prompt, std::string error, bool allow_opt,
             }, values);
 
             // Check the condition if provided
-            if (cond == nullptr || cond(values)) {
+            if constexpr (std::same_as<Predicate, std::nullptr_t>) {
                 // Success: return flattened tuple with bool and extracted values
                 return std::tuple_cat(std::make_tuple(true), values);
-            }
-            else {
-                success = false; // Force retry
+            } else {
+                if (cond(values)) {
+                    // Success: return flattened tuple with bool and extracted values
+                    return std::tuple_cat(std::make_tuple(true), values);
+                }
+                else {
+                    success = false; // Force retry
+                }
             }
         }
         else {
@@ -151,12 +153,28 @@ read_in(std::istream& in, std::string prompt, std::string error, bool allow_opt,
 }
 
 
-template <typename T> std::tuple<bool, T> 
-read_in(std::istream& input, std::string prompt = {}, std::string error = {}, bool allow_opt = false, std::function<bool(const T&)> cond = nullptr)
+template <typename T, typename Predicate = std::nullptr_t> 
+requires (mcml::concepts::Predicate<Predicate, const T&> && 
+          !mcml::concepts::Predicate<Predicate, const std::tuple<T>&>)
+std::tuple<bool, T> 
+read_in_single(std::istream& input, std::string prompt = {}, std::string error = {}, bool allow_opt = false, Predicate cond = nullptr)
 {
-    auto [success, value] = read_in<T>(input, prompt, error, allow_opt, [&cond](const std::tuple<T>& values) {
-        if (!cond) { return true; }
-        return cond(std::get<0>(values));
+    auto [success, value] = read_in<T>(input, prompt, error, allow_opt, [cond](const std::tuple<T>& values) {
+        if constexpr (std::same_as<Predicate, std::nullptr_t>) {
+            return true; 
+        } else {
+            return cond(std::get<0>(values));
+        }
     });
+    return { success, value };
+}
+
+/**
+ * @brief Overload for nullptr predicate 
+ */
+template <typename T>
+std::tuple<bool, T>
+read_in_single(std::istream& input, std::string prompt = {}, std::string error = {}, bool allow_opt = false, std::nullptr_t cond = nullptr) {
+    auto [success, value] = read_in<T>(input, prompt, error, allow_opt);
     return { success, value };
 }

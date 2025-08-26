@@ -28,11 +28,31 @@ Simulator::Simulator(std::string in_file) :
     m_cin_reader{ std::make_shared<CinReader>() },
     m_writer{ std::make_shared<Writer>() },
     m_cout_writer{ std::make_shared<CoutWriter>() },
-    m_random{ std::make_shared<Random>() },
     m_timer{ std::make_shared<Timer>() },
+    m_random{ std::make_shared<Random>() },
     m_tracer{ std::make_shared<Tracer>(m_params, m_random) }
 {
     m_random->seed(1);
+    
+    // Add default console observer for progress reporting
+    auto console_observer = std::make_shared<mcml::ConsoleObserver>(false, std::chrono::milliseconds{2000});
+    add_observer(console_observer);
+}
+
+// Observer pattern methods
+void Simulator::add_observer(std::shared_ptr<mcml::SimulationObserver> observer)
+{
+    m_observer_subject.add_observer(std::move(observer));
+}
+
+void Simulator::remove_observer(const std::shared_ptr<mcml::SimulationObserver>& observer)
+{
+    m_observer_subject.remove_observer(observer);
+}
+
+const mcml::ProgressInfo& Simulator::progress() const
+{
+    return m_observer_subject.progress();
 }
 
 void Simulator::Simulate()
@@ -142,7 +162,7 @@ void Simulator::InteractiveEdit()
 
     do {
         retry = !promptFileName(filename);
-        if (filename == "Q") {
+        if (filename == "." || filename == "Q") {
             return;
         }
     } while (retry);
@@ -175,9 +195,16 @@ void Simulator::run(std::size_t run_index, bool start_new)
         m_random->seed(1);
     }
 
+    // Setup observer progress tracking
+    m_observer_subject.set_total_photons(m_params.target.photons_limit);
+    m_observer_subject.set_stage("Initializing simulation");
+    m_observer_subject.notify_event(mcml::SimulationEvent::Started);
+
     m_timer->reset();
 
     reportTarget(m_params.num_runs - run_index);
+
+    m_observer_subject.set_stage("Tracing photons");
 
     bool exit = false;
     std::size_t photon_traced = 1;
@@ -187,9 +214,17 @@ void Simulator::run(std::size_t run_index, bool start_new)
         Photon photon = m_tracer->Launch();
         m_tracer->Trace(photon);
 
+        // Update observer with current progress
+        m_observer_subject.set_current_photon(photon_traced);
+        
+        // Notify observer for single photon processed
+        m_observer_subject.notify_event(mcml::SimulationEvent::PhotonProcessed);
+
         if (photon_traced == tens) {
             tens *= 10;
             reportProgress(photon_traced);
+            // Notify observer for progress update
+            m_observer_subject.notify_event(mcml::SimulationEvent::Progress);
         }
         photon_traced++;
 
@@ -216,6 +251,10 @@ void Simulator::run(std::size_t run_index, bool start_new)
     m_params.target.photons_remaining = m_params.target.photons_limit - photon_traced;
     m_params.target.time_remaining = m_params.target.time_limit - static_cast<long>(m_timer->punch());
 
+    // Notify observers that simulation is completed
+    m_observer_subject.set_stage("Simulation completed");
+    m_observer_subject.notify_event(mcml::SimulationEvent::Completed);
+
     reportResult();
 
     m_tracer.reset();
@@ -231,7 +270,7 @@ bool Simulator::interactiveRun()
     std::cout << "Any changes to the input parameters? (Y/N) ";
     do {
         std::cin.get(command);
-        command = std::toupper(command);
+        command = static_cast<char>(std::toupper(static_cast<unsigned char>(command)));
     } while (command != 'Y' && command != 'N');
 
     std::cin.ignore(max_size, '\n');
@@ -247,9 +286,18 @@ bool Simulator::interactiveRun()
         do {
             std::cout << std::endl << "> Change menu (h for help) => ";
             do {
-                std::cin.get(command);
-                command = std::toupper(command);
-            } while (command == '\0' || command == '\n');
+                if (!std::cin.get(command)) {
+                    if (std::cin.eof()) {
+                        return true; // Exit to main menu
+                    }
+                    continue;
+                }
+                command = static_cast<char>(std::toupper(static_cast<unsigned char>(command)));
+            } while ((command == '\0' || command == '\n') && !std::cin.eof());
+
+            if (std::cin.eof()) {
+                return true; // Exit to main menu
+            }
 
             std::cin.ignore(max_size, '\n');
             start_sim = editMenu(command);
@@ -258,12 +306,21 @@ bool Simulator::interactiveRun()
             if (start_sim) {
                 break;
             }
-        } while (true);
+        } while (true && !std::cin.eof());
+
+        if (std::cin.eof()) {
+            return true; // Exit to main menu
+        }
 
         std::cout << "Do you want to save the input to a file? (Y/N) ";
         do {
-            std::cin.get(command);
-        } while (command == '\0' || command == '\n');
+            if (!std::cin.get(command)) {
+                if (std::cin.eof()) {
+                    return true; // Exit to main menu
+                }
+                continue;
+            }
+        } while ((command == '\0' || command == '\n') && !std::cin.eof());
 
         if (std::toupper(command) == 'Y') {
             std::cout << "Give the file name to save input: ( .mci): ";
@@ -282,14 +339,21 @@ bool Simulator::interactiveRun()
         if (start_sim && !validateParams()) {
             std::cout << "Change input or exit to main menu (C/X): ";
             do {
-                std::cin.get(command);
+                if (!std::cin.get(command)) {
+                    if (std::cin.eof()) {
+                        m_params.mediums.clear();
+                        m_params.layers.clear();
+                        return false;
+                    }
+                    continue;
+                }
 
                 if (std::toupper(command) == 'X') {
                     m_params.mediums.clear();
                     m_params.layers.clear();
                     return false;
                 }
-            } while (command == '\0' || command == '\n');
+            } while ((command == '\0' || command == '\n') && !std::cin.eof());
 
             // Continue to change parameters
             cont = true;
@@ -305,15 +369,20 @@ bool Simulator::editMenu(char command)
         case 'O': { m_writer->WriteParams(std::cout, m_params); break; }
         case 'M': { editMediums(); break; }
         case 'F': { editOutput(); break; }
-        case 'G': { editGrid(); break; }
+        case 'D': { editGridSpacing(); break; }  // Change dz, dr, dt only
+        case 'N': { editGridSize(); break; }  // Change nz, nr, nt, na only
+        case 'G': { editGrid(); break; }  // Keep original combined grid editor
         case 'C': { editRecord(); break; }
         case 'W': { editWeight(); break; }
+        case 'R': { editRandomSeed(); break; }  // Need to implement
         case 'L': { editLayers(); break; }
         case 'P': { editTarget(); break; }
         case 'S': { editSource(); break; }
+        case 'Z': { editSourcePosition(); break; }  // Need to implement
         case 'H': { showEditMenuHelp(); break; }
-        case 'Q': { return true; }
-        default: { std::cout << "Unknown command." << std::endl; }
+        case 'Q': { return true; }  // Quit change menu and start simulation
+        case 'X': { return true; }  // Exit to main menu
+        default: { puts("...Unknown command"); }
     }
     return false;
 }
@@ -329,9 +398,9 @@ bool Simulator::validateParams()
         return std::numeric_limits<std::size_t>::max();
     };
 
-    for (int i = 0; i <= m_params.num_layers + 1; i++) {
+    for (std::size_t i = 0; i <= m_params.num_layers + 1; i++) {
         std::size_t index{};
-        bool name_exists = std::ranges::any_of(m_params.mediums, [&](const Layer& medium) {
+        bool name_exists = std::any_of(m_params.mediums.begin(), m_params.mediums.end(), [&](const Layer& medium) {
             if (medium.name == m_params.layers[i].name) {
                 index = medium.index;
             }
@@ -409,7 +478,8 @@ void Simulator::reportProgress(std::size_t photons_done)
         std::cout << std::format("\t{:<13}\t", photons_done) << std::endl;
     }
     else {
-        std::cout << std::format("{:>12} ({:6.2f}%)\t", photons_done, (float)photons_done * 100 / m_params.target.photons_limit) << std::endl;
+        std::cout << std::format("{:>12} ({:6.2f}%)\t", photons_done, 
+            static_cast<float>(photons_done) * 100.0f / static_cast<float>(m_params.target.photons_limit)) << std::endl;
     }
 }
 
@@ -429,6 +499,7 @@ void Simulator::reportResult()
     std::fstream file(m_params.output_filename, std::ios::out);
 
     if (!file.is_open()) {
+        m_observer_subject.notify_event(mcml::SimulationEvent::Error, "Cannot open output file to write: " + m_params.output_filename);
         std::cout << "Can not open output file to write." << std::endl;
         std::exit(1);
     }
@@ -439,26 +510,37 @@ void Simulator::reportResult()
 
 bool Simulator::promptFileName(std::string& result, std::string file_type)
 {
+    (void)file_type;  // Suppress unused parameter warning
     std::string buf;
 
     while (buf.empty()) {
-        std::cout << "Specify path to " << file_type << " file (or Q to quit to main menu): ";
+        std::cout << "Specify filename (or . to quit to main menu):";
 
         // Read input buffer
-        std::getline(std::cin, buf);
-
-        if (!buf.empty()) {
-            // Terminate with letter Q
-            if (buf.size() == 1 && std::toupper(buf[0]) == 'Q') {
-                result = "Q";
-                return true;
-            }
+        if (!std::getline(std::cin, buf)) {
+            // EOF or input error - clear cin state and return "." to quit
+            std::cin.clear();
+            result = ".";
+            return true;
         }
 
-        // Check if file exists
-        if (!std::filesystem::exists(buf)) {
-            std::cout << "File does not exist." << std::endl;
-            return false;
+        if (!buf.empty()) {
+            // Terminate with period
+            if (buf == ".") {
+                result = ".";
+                return true;
+            }
+            
+            // Check if file exists
+            if (!std::filesystem::exists(buf)) {
+                std::cout << "File does not exist." << std::endl;
+                buf.clear();  // Clear buf to continue loop
+                continue;
+            }
+            
+            // File exists, return it
+            result = buf;
+            return true;
         }
     }
 
@@ -471,10 +553,25 @@ bool Simulator::promptEdit()
 {
     char ch{ '\0' };
     std::cout << "Do you want to change them? (Y/N): ";
+    
+    // Check for EOF before entering the loop
+    if (std::cin.eof()) {
+        return false;
+    }
+    
     do {
-        std::cin.get(ch);
-        ch = std::toupper(ch);
-    } while (ch != 'Y' && ch != 'N');
+        if (!std::cin.get(ch)) {
+            if (std::cin.eof()) {
+                return false;
+            }
+            continue;
+        }
+        ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+    } while (ch != 'Y' && ch != 'N' && !std::cin.eof());
+    
+    if (std::cin.eof()) {
+        return false;
+    }
 
     std::cin.ignore(max_size, '\n');
     return ch == 'Y';
@@ -498,7 +595,14 @@ void Simulator::editOutput()
     m_cout_writer->WriteFilename(*m_cout_writer, m_params);
     std::cout << std::endl;
 
-    m_cin_reader->ReadOutput(*m_cin_reader, m_params.output_filename);
+    // Check for EOF before trying to read
+    if (std::cin.eof()) {
+        return;
+    }
+
+    if (!m_cin_reader->ReadOutput(*m_cin_reader, m_params.output_filename)) {
+        return;
+    }
 }
 
 void Simulator::editGrid()
@@ -512,6 +616,24 @@ void Simulator::editGrid()
     std::cout << std::endl;
 
     m_cin_reader->ReadGrid(*m_cin_reader, m_params.grid);
+}
+
+void Simulator::editGridSpacing()
+{
+    std::cout << "Current dz, dr, dt: " << std::endl;
+    m_cout_writer->WriteGridParams(*m_cout_writer, m_params);
+    std::cout << std::endl;
+
+    m_cin_reader->ReadGridSpacing(std::cin, m_params.grid);
+}
+
+void Simulator::editGridSize()
+{
+    std::cout << "Current nz, nr, nt, na: " << std::endl;
+    m_cout_writer->WriteGridParams(*m_cout_writer, m_params);
+    std::cout << std::endl;
+
+    m_cin_reader->ReadGridSize(std::cin, m_params.grid);
 }
 
 void Simulator::editRecord()
@@ -568,22 +690,72 @@ void Simulator::editSource()
     m_cout_writer->WritePhotonSource(*m_cout_writer, m_params);
     std::cout << std::endl;
 
-    m_cin_reader->ReadSource(*m_cin_reader, m_params, m_params.source);
+    // Check for EOF before trying to read
+    if (std::cin.eof()) {
+        return;
+    }
+
+    if (!m_cin_reader->ReadSource(*m_cin_reader, m_params, m_params.source)) {
+        return;
+    }
 }
 
 void Simulator::showEditMenuHelp()
 {
-    std::cout << "  O = Print the input on screen." << std::endl;
-    std::cout << "  M = Change media list." << std::endl;
-    std::cout << "  F = Change output file name." << std::endl;
-    std::cout << "  G = Change grid properties." << std::endl;
-    std::cout << "  C = Change scored data categories." << std::endl;
-    std::cout << "  W = Change threshold weight." << std::endl;
-    std::cout << "  L = Change layer specifications." << std::endl;
-    std::cout << "  P = Change photon number and computation time limit." << std::endl;
-    std::cout << "  S = Change source properties." << std::endl;
-    std::cout << "  Q = Quit from change menu and start simulation." << std::endl;
+    std::cout << "  o = Print the input on screen." << std::endl;
+    std::cout << "  m = Change media list." << std::endl;
+    std::cout << "  f = Change output file name and format." << std::endl;
+    std::cout << "  d = Change dz, dr, dt." << std::endl;
+    std::cout << "  n = Change nz, nr, nt, na." << std::endl;
+    std::cout << "  c = Change scored data categories." << std::endl;
+    std::cout << "  w = Change threshold weight." << std::endl;
+    std::cout << "  r = Change random number seed." << std::endl;
+    std::cout << "  l = Change layer specifications." << std::endl;
+    std::cout << "  p = Change photon number and computation time limit." << std::endl;
+    std::cout << "  s = Change source type." << std::endl;
+    std::cout << "  z = Change source starting position." << std::endl;
+    std::cout << "  q = Quit from change menu and start simulation." << std::endl;
+    std::cout << "  x = Exit to the main menu." << std::endl;
     std::cout << "  * Commands here are not case-sensitive" << std::endl;
+}
+
+void Simulator::editRandomSeed()
+{
+    std::cout << "Current random seed: " << m_params.seed << std::endl;
+    std::cout << "New random seed: ";
+    
+    // Check for EOF before trying to read
+    if (std::cin.eof()) {
+        return;
+    }
+    
+    std::int32_t seed;
+    if (!(std::cin >> seed)) {
+        return;
+    }
+    std::cin.ignore(max_size, '\n');
+    
+    m_params.seed = seed;
+}
+
+void Simulator::editSourcePosition()
+{
+    std::cout << "Current starting position: " << std::endl;
+    m_cout_writer->WritePhotonSource(*m_cout_writer, m_params);
+    std::cout << std::endl;
+
+    std::cout << "Layer Specification: " << std::endl;
+    m_cout_writer->WriteLayers(*m_cout_writer, m_params);
+    std::cout << std::endl;
+
+    // Check for EOF before trying to read
+    if (std::cin.eof()) {
+        return;
+    }
+
+    if (!m_cin_reader->ReadSource(*m_cin_reader, m_params, m_params.source)) {
+        return;
+    }
 }
 
 void Simulator::scaleReflectance(Radiance& radiance, ScaleMode mode)
@@ -632,19 +804,19 @@ void Simulator::scaleReflectance(Radiance& radiance, ScaleMode mode)
         radiance.Rb_error = (scale1 * radiance.Rb_error) * (scale1 * radiance.Rb_error) + 1 / scale1 * radiance.Rb_total * radiance.Rb_total;
     }
 
-    scale1 = dt * m_params.target.photons_limit;
+    scale1 = dt * static_cast<double>(m_params.target.photons_limit);
     if (m_params.record.R_t) {
         for (std::size_t it = 0; it < nt; it++) {
             radiance.R_t[it] = op(radiance.R_t[it], scale1);
         }
     }
 
-    scale1 = 2.0 * std::numbers::pi * dr * dr * m_params.target.photons_limit;
+    scale1 = 2.0 * std::numbers::pi * dr * dr * static_cast<double>(m_params.target.photons_limit);
     // area is 2*PI*[(ir+0.5)*grid_r]*grid_r.  ir + 0.5 to be added.
 
     if (m_params.record.R_r) {
         for (std::size_t ir = 0; ir < nr; ir++) {
-            double scale2 = 1.0 / ((ir + 0.5) * scale1);
+            double scale2 = 1.0 / ((static_cast<double>(ir) + 0.5) * scale1);
             radiance.R_r[ir] = op(radiance.R_r[ir], scale2);
         }
     }
@@ -659,12 +831,12 @@ void Simulator::scaleReflectance(Radiance& radiance, ScaleMode mode)
         }
     }
 
-    scale1 = std::numbers::pi * da * m_params.target.photons_limit;
+    scale1 = std::numbers::pi * da * static_cast<double>(m_params.target.photons_limit);
 
     // Solid angle times cos(a) is PI*sin(2a)*grid_a. sin(2a) to be added.
     if (m_params.record.R_a) {
         for (std::size_t ia = 0; ia < na; ia++) {
-            double scale2 = 1.0 / (sin(2.0 * (ia + 0.5) * da) * scale1);
+            double scale2 = 1.0 / (sin(2.0 * (static_cast<double>(ia) + 0.5) * da) * scale1);
             radiance.R_a[ia] = op(radiance.R_a[ia], scale2);
         }
     }

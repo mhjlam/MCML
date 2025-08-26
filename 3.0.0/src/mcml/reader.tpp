@@ -6,38 +6,80 @@
 #include <variant>
 #include <iostream>
 #include <functional>
+#include <concepts>
+#include <type_traits>
 
 #include "reader.hpp"
 #include "reader_util.hpp"
 
+/**
+ * @brief C++20 concepts for template constraints
+ */
+namespace mcml::concepts {
+    template<typename T>
+    concept Numeric = std::integral<T> || std::floating_point<T>;
+    
+    template<typename T>
+    concept Parseable = Numeric<T> || std::same_as<T, std::string>;
+    
+    template<typename F, typename... Args>
+    concept Predicate = std::invocable<F, Args...> && 
+                       std::convertible_to<std::invoke_result_t<F, Args...>, bool>;
+}
 
-template <typename T> std::string typename_name()
-{
+/**
+ * @brief Get human-readable type name for error messages
+ * @tparam T Type to get name for
+ * @return Readable type name
+ */
+template <typename T> 
+std::string typename_name() {
     std::string readable_name = typeid(T).name();
-
-    // Simplify common types like std::string
-    if (readable_name == "class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >") {
+    
+    // Simplify common types
+    if (readable_name.find("basic_string") != std::string::npos) {
         readable_name = "string";
+    } else if (readable_name.find("double") != std::string::npos) {
+        readable_name = "double";
+    } else if (readable_name.find("int") != std::string::npos) {
+        readable_name = "int";
     }
     return readable_name;
 }
 
-
-template <typename... Ts> std::string typename_types()
-{
-    std::ostringstream oss;
-    ((oss << typename_name<Ts>() << ", "), ...);
-    std::string result = oss.str();
-    if (!result.empty()) {
-        result.pop_back(); // Remove trailing space
-        result.pop_back(); // Remove trailing comma
+/**
+ * @brief Get comma-separated list of type names
+ * @tparam Ts Parameter pack of types
+ * @return Comma-separated type names
+ */
+template <typename... Ts> 
+std::string typename_types() {
+    if constexpr (sizeof...(Ts) == 0) {
+        return "";
+    } else {
+        std::ostringstream oss;
+        ((oss << typename_name<Ts>() << ", "), ...);
+        std::string result = oss.str();
+        if (result.size() >= 2) {
+            result.erase(result.size() - 2); // Remove trailing ", "
+        }
+        return result;
     }
-    return result;
 }
 
-template <typename... Ts> std::tuple<bool, Ts...>
-read(std::istream& in, std::string error = {}, std::function<bool(const std::tuple<Ts...>&)> check = nullptr)
-{
+/**
+ * @brief Read multiple values from input stream with validation
+ * @tparam Ts Parameter pack of parseable types
+ * @tparam Predicate Callable that validates the parsed tuple
+ * @param in Input stream to read from
+ * @param error Error message to display on failure
+ * @param check Validation predicate (optional)
+ * @return Tuple containing success flag and parsed values
+ */
+template <mcml::concepts::Parseable... Ts, typename Predicate = std::nullptr_t>
+requires (mcml::concepts::Predicate<Predicate, const std::tuple<Ts...>&> || std::same_as<Predicate, std::nullptr_t>)
+std::tuple<bool, Ts...>
+read(std::istream& in, std::string error = {}, Predicate check = nullptr) {
     if (error.empty()) {
         error = "Invalid values for types (" + typename_types<Ts...>() + ").";
     }
@@ -84,28 +126,64 @@ read(std::istream& in, std::string error = {}, std::function<bool(const std::tup
     }
 
     // Check if the condition is met
-    if (check != nullptr && !check(values)) {
-        return std::tuple_cat(std::make_tuple(false), std::tuple<Ts...>{});
+    if constexpr (!std::same_as<Predicate, std::nullptr_t>) {
+        if (!check(values)) {
+            std::cerr << error << " (validation failed)" << std::endl;
+            return std::tuple_cat(std::make_tuple(false), std::tuple<Ts...>{});
+        }
     }
 
     // Return true (success) and values
     return std::tuple_cat(std::make_tuple(true), values);
 }
 
-
-template <typename T> std::tuple<bool, T>
-read(std::istream& in, std::string error = {}, std::function<bool(const T&)> check = nullptr)
-{
-    auto [success, value] = read<T>(in, error, [&check](const std::tuple<T>& values) {
-        if (!check) { return true; }
-        return check(std::get<0>(values));
+/**
+ * @brief Read single value from input stream with validation  
+ * @tparam T Type to parse
+ * @tparam Predicate Callable that validates the parsed value
+ * @param in Input stream to read from
+ * @param error Error message to display on failure
+ * @param check Validation predicate (optional)
+ * @return Tuple containing success flag and parsed value
+ */
+template <mcml::concepts::Parseable T, typename Predicate>
+requires (mcml::concepts::Predicate<Predicate, const T&> && 
+          !mcml::concepts::Predicate<Predicate, const std::tuple<T>&>)
+std::tuple<bool, T>
+read_single(std::istream& in, std::string error = {}, Predicate check = nullptr) {
+    auto [success, value] = read<T>(in, error, [check](const std::tuple<T>& values) -> bool {
+        if constexpr (std::same_as<Predicate, std::nullptr_t>) {
+            return true;
+        } else {
+            return check(std::get<0>(values));
+        }
     });
     return { success, value };
 }
 
-template <typename... Ts> std::tuple<bool, Ts...>
-read_line(std::string& line, std::string error = {}, std::function<bool(const std::tuple<Ts...>&)> check = nullptr)
-{
+/**
+ * @brief Overload for nullptr predicate 
+ */
+template <mcml::concepts::Parseable T>
+std::tuple<bool, T>
+read_single(std::istream& in, std::string error = {}, std::nullptr_t check = nullptr) {
+    auto [success, value] = read<T>(in, error);
+    return { success, value };
+}
+
+/**
+ * @brief Parse multiple values from a string line with validation
+ * @tparam Ts Parameter pack of parseable types
+ * @tparam Predicate Callable that validates the parsed tuple
+ * @param line String line to parse
+ * @param error Error message to display on failure  
+ * @param check Validation predicate (optional)
+ * @return Tuple containing success flag and parsed values
+ */
+template <mcml::concepts::Parseable... Ts, typename Predicate = std::nullptr_t>
+requires (mcml::concepts::Predicate<Predicate, const std::tuple<Ts...>&> || std::same_as<Predicate, std::nullptr_t>)
+std::tuple<bool, Ts...>
+read_line(std::string& line, std::string error = {}, Predicate check = nullptr) {
     if (error.empty()) {
         error = "Invalid values for types (" + typename_types<Ts...>() + ").";
     }
@@ -116,8 +194,7 @@ read_line(std::string& line, std::string error = {}, std::function<bool(const st
     bool success = extract(line, vec, expected);
 
     // Check if the number of extracted values matches the expected number
-    if (!success || vec.size() != sizeof...(Ts))
-    {
+    if (!success || vec.size() != sizeof...(Ts)) {
         std::cerr << error << std::endl;
         return std::tuple_cat(std::make_tuple(false), std::tuple<Ts...>{});
     }
@@ -147,21 +224,48 @@ read_line(std::string& line, std::string error = {}, std::function<bool(const st
     }
 
     // Check if the condition is met
-    if (check != nullptr && !check(values)) {
-        return std::tuple_cat(std::make_tuple(false), std::tuple<Ts...>{});
+    if constexpr (!std::same_as<Predicate, std::nullptr_t>) {
+        if (!check(values)) {
+            std::cerr << error << " (validation failed)" << std::endl;
+            return std::tuple_cat(std::make_tuple(false), std::tuple<Ts...>{});
+        }
     }
 
     // Return true (success) and values
     return std::tuple_cat(std::make_tuple(true), values);
 }
 
-template <typename T> std::tuple<bool, T>
-read_line(std::string& line, std::string error = {}, std::function<bool(const T&)> check = nullptr)
-{
-    auto [success, value] = read_line<T>(line, error, [&check](const std::tuple<T>& values) {
-        if (!check) { return true; }
-        return check(std::get<0>(values));
+/**
+ * @brief Parse single value from a string line with validation
+ * @tparam T Type to parse
+ * @tparam Predicate Callable that validates the parsed value
+ * @param line String line to parse
+ * @param error Error message to display on failure
+ * @param check Validation predicate (optional)
+ * @return Tuple containing success flag and parsed value
+ */
+template <mcml::concepts::Parseable T, typename Predicate>
+requires (mcml::concepts::Predicate<Predicate, const T&> && 
+          !mcml::concepts::Predicate<Predicate, const std::tuple<T>&>)
+std::tuple<bool, T>
+read_line_single(std::string& line, std::string error = {}, Predicate check = nullptr) {
+    auto [success, value] = read_line<T>(line, error, [check](const std::tuple<T>& values) -> bool {
+        if constexpr (std::same_as<Predicate, std::nullptr_t>) {
+            return true;
+        } else {
+            return check(std::get<0>(values));
+        }
     });
+    return { success, value };
+}
+
+/**
+ * @brief Overload for nullptr predicate 
+ */
+template <mcml::concepts::Parseable T>
+std::tuple<bool, T>
+read_line_single(std::string& line, std::string error = {}, std::nullptr_t check = nullptr) {
+    auto [success, value] = read_line<T>(line, error);
     return { success, value };
 }
 

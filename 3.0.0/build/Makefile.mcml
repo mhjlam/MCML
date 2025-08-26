@@ -1,184 +1,359 @@
-# MCML 3.0.0 - Monte Carlo Multi-Layered simulation (C++)
-# Unified Makefile for building MCML C++ version only
+# MCML 3.0.0 - Monte Carlo Multi-Layered simulation (C++20)
+# Enhanced Makefile with comprehensive build targets
 
-# Project info
+# Project metadata
 PROJECT = mcml
 VERSION = 3.0.0
 SRCDIR = ../src/mcml
 BINDIR = ../bin
+TESTDIR = ../test
+DOCDIR = ../doc
+
+# Build configuration
+BUILD_TYPE ?= release
+VERBOSE ?= 0
 
 # Platform detection and cross-platform commands
 ifeq ($(OS),Windows_NT)
 	SHELL = cmd.exe
 	EXEEXT = .exe
-	MKDIR_P = if not exist "$(BINDIR)" mkdir "$(BINDIR)"
+	MKDIR_P = if not exist "$(1)" mkdir "$(1)"
 	RM = del /Q
+	RMDIR = rmdir /S /Q
 	DEVNULL = NUL
+	PATHSEP = \\
 	
 	# For Windows, use g++ by default (user can override with make CXX=clang++)
-	CXX = g++
+	CXX ?= g++
 	ifeq ($(CXX),cl)
-		CXXFLAGS = /EHsc /std:c++20 /W3 /O2
+		CXXFLAGS = /EHsc /std:c++20 /W3
 		LIBS = 
 		COMPILER_FOUND = cl
+		ifeq ($(BUILD_TYPE),debug)
+			CXXFLAGS += /Od /Zi /DEBUG
+		else
+			CXXFLAGS += /O2 /DNDEBUG
+		endif
 	else
 		# For g++, clang++, and other GCC-compatible compilers
-		CXXFLAGS = -std=c++20 -g -Wall -Wextra -O2
+		CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -Wconversion -Wsign-conversion
 		LIBS = -lm
 		COMPILER_FOUND = $(CXX)
+		ifeq ($(BUILD_TYPE),debug)
+			CXXFLAGS += -g -O0 -DDEBUG -fsanitize=address,undefined
+			LDFLAGS += -fsanitize=address,undefined
+		else
+			CXXFLAGS += -O2 -DNDEBUG
+		endif
 	endif
 else
 	# Unix-like environment (Linux, macOS, WSL when not Windows_NT)
 	EXEEXT =
-	MKDIR_P = mkdir -p $(BINDIR)
+	MKDIR_P = mkdir -p $(1)
 	RM = rm -f
+	RMDIR = rm -rf
 	DEVNULL = /dev/null
+	PATHSEP = /
 	# Unix-like systems - use c++ by default
-	CXX = c++
-	CXXFLAGS = -std=c++20 -g -Wall -Wextra -O2
+	CXX ?= c++
+	CXXFLAGS = -std=c++20 -Wall -Wextra -pedantic -Wconversion -Wsign-conversion
 	LIBS = -lm
 	COMPILER_FOUND = $(CXX)
+	ifeq ($(BUILD_TYPE),debug)
+		CXXFLAGS += -g -O0 -DDEBUG -fsanitize=address,undefined
+		LDFLAGS += -fsanitize=address,undefined
+	else
+		CXXFLAGS += -O2 -DNDEBUG
+	endif
+endif
+
+# Verbose output control
+ifeq ($(VERBOSE),1)
+	Q =
+	ECHO = @echo
+else
+	Q = @
+	ECHO = @echo
 endif
 
 TARGET = $(BINDIR)/$(PROJECT)$(EXEEXT)
-INDENT_OPT = -br -brs -nbs -ci4 -cli0 -bli0 -l120 -ncdb -nce -nlp -npcs -npsl -i4 -nut
+TEST_TARGET = $(BINDIR)/$(PROJECT)_test$(EXEEXT)
 
 # Source files from the C++ implementation
-SRCS = $(SRCDIR)/main.cpp $(SRCDIR)/reader.cpp $(SRCDIR)/reader_util.cpp $(SRCDIR)/simulator.cpp $(SRCDIR)/tracer.cpp $(SRCDIR)/writer.cpp
-OBJS = main.o reader.o reader_util.o simulator.o tracer.o writer.o
-HEADERS = $(SRCDIR)/*.hpp
+SRCS = $(SRCDIR)/main.cpp $(SRCDIR)/reader.cpp $(SRCDIR)/reader_util.cpp \
+       $(SRCDIR)/simulator.cpp $(SRCDIR)/tracer.cpp $(SRCDIR)/writer.cpp $(SRCDIR)/cin_reader.cpp
+OBJS = main.o reader.o reader_util.o simulator.o tracer.o writer.o cin_reader.o
+HEADERS = $(wildcard $(SRCDIR)/*.hpp) $(wildcard $(SRCDIR)/*.tpp)
+
+# Test source files (if they exist)
+TEST_SRCS = $(wildcard $(TESTDIR)/*.cpp)
+TEST_OBJS = $(TEST_SRCS:$(TESTDIR)/%.cpp=test_%.o)
 
 # Default target
-all: $(BINDIR) $(TARGET) copy-samples
-	@echo Built with $(COMPILER_FOUND) compiler
+.PHONY: all
+all: info $(TARGET) copy-samples
+	$(ECHO) "Build completed successfully with $(COMPILER_FOUND) compiler in $(BUILD_TYPE) mode"
 
-# Build MCML executable in bin directory
+# Information about build configuration
+.PHONY: info
+info:
+	$(ECHO) "MCML $(VERSION) Build Information:"
+	$(ECHO) "   Platform:     $(OS)"
+	$(ECHO) "   Compiler:     $(COMPILER_FOUND)"
+	$(ECHO) "   Build Type:   $(BUILD_TYPE)"
+	$(ECHO) "   C++ Standard: C++20"
+	$(ECHO) "   Source Dir:   $(SRCDIR)"
+	$(ECHO) "   Binary Dir:   $(BINDIR)"
+	$(ECHO) "   Flags:        $(CXXFLAGS)"
+	$(ECHO)
+
+# Create necessary directories
+$(BINDIR):
+	$(Q)$(call MKDIR_P,$(BINDIR))
+
+$(TESTDIR):
+	$(Q)$(call MKDIR_P,$(TESTDIR))
+
+$(DOCDIR):
+	$(Q)$(call MKDIR_P,$(DOCDIR))
+
+# Build MCML executable
+.PHONY: mcml
 mcml: $(TARGET) copy-samples
 
-$(TARGET): $(OBJS)
+$(TARGET): $(BINDIR) $(OBJS)
+	$(ECHO) "Linking $(TARGET)..."
 ifeq ($(CXX),cl)
-	$(CXX) $(CXXFLAGS) $(addprefix ./,$(OBJS)) /Fe$@ $(LIBS)
+	$(Q)$(CXX) $(CXXFLAGS) $(addprefix ./,$(OBJS)) /Fe$@ $(LIBS)
 else
-	$(CXX) $(CXXFLAGS) -o $@ $(addprefix ./,$(OBJS)) $(LIBS)
+	$(Q)$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $(addprefix ./,$(OBJS)) $(LIBS)
 endif
 
 # Object file rules (object files stay in build folder)
 main.o: $(SRCDIR)/main.cpp $(HEADERS)
+	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
-	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/main.cpp /Fo$@
+	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/main.cpp /Fo$@
 else
-	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/main.cpp -o $@
+	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/main.cpp -o $@
 endif
 
 reader.o: $(SRCDIR)/reader.cpp $(HEADERS)
+	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
-	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/reader.cpp /Fo$@
+	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/reader.cpp /Fo$@
 else
-	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/reader.cpp -o $@
+	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/reader.cpp -o $@
 endif
 
 reader_util.o: $(SRCDIR)/reader_util.cpp $(HEADERS)
+	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
-	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/reader_util.cpp /Fo$@
+	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/reader_util.cpp /Fo$@
 else
-	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/reader_util.cpp -o $@
+	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/reader_util.cpp -o $@
 endif
 
 simulator.o: $(SRCDIR)/simulator.cpp $(HEADERS)
+	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
-	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/simulator.cpp /Fo$@
+	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/simulator.cpp /Fo$@
 else
-	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/simulator.cpp -o $@
+	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/simulator.cpp -o $@
 endif
 
 tracer.o: $(SRCDIR)/tracer.cpp $(HEADERS)
+	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
-	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/tracer.cpp /Fo$@
+	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/tracer.cpp /Fo$@
 else
-	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/tracer.cpp -o $@
+	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/tracer.cpp -o $@
 endif
 
 writer.o: $(SRCDIR)/writer.cpp $(HEADERS)
+	$(ECHO) "Compiling $<..."
 ifeq ($(CXX),cl)
-	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/writer.cpp /Fo$@
+	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/writer.cpp /Fo$@
 else
-	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/writer.cpp -o $@
+	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/writer.cpp -o $@
 endif
 
-# Test with sample input files
-test: $(TARGET)
-	@echo Testing MCML 2.1.0...
-ifeq ($(OS),Windows_NT)
-	@if not exist "test" mkdir "test"
-	@echo Running: $(PROJECT)$(EXEEXT) sample/template.mci
-	@cd $(BINDIR) && $(PROJECT)$(EXEEXT) sample/template.mci && move *.mco ../build/test/ >$(DEVNULL) 2>&1 || echo.
-	@echo Running: $(PROJECT)$(EXEEXT) sample/sample1.mci
-	@cd $(BINDIR) && $(PROJECT)$(EXEEXT) sample/sample1.mci && move *.mco ../build/test/ >$(DEVNULL) 2>&1 || echo.
-	@echo Running: $(PROJECT)$(EXEEXT) sample/sample2.mci
-	@cd $(BINDIR) && $(PROJECT)$(EXEEXT) sample/sample2.mci && move *.mco ../build/test/ >$(DEVNULL) 2>&1 || echo.
+cin_reader.o: $(SRCDIR)/cin_reader.cpp $(HEADERS)
+	$(ECHO) "Compiling $<..."
+ifeq ($(CXX),cl)
+	$(Q)$(CXX) $(CXXFLAGS) /c $(SRCDIR)/cin_reader.cpp /Fo$@
 else
-	@mkdir -p test
-	@echo Running: $(PROJECT)$(EXEEXT) sample/template.mci
-	@cd $(BINDIR) && ./$(PROJECT)$(EXEEXT) sample/template.mci && mv *.mco ../build/test/ 2>$(DEVNULL) || true
-	@echo Running: $(PROJECT)$(EXEEXT) sample/sample1.mci
-	@cd $(BINDIR) && ./$(PROJECT)$(EXEEXT) sample/sample1.mci && mv *.mco ../build/test/ 2>$(DEVNULL) || true
-	@echo Running: $(PROJECT)$(EXEEXT) sample/sample2.mci
-	@cd $(BINDIR) && ./$(PROJECT)$(EXEEXT) sample/sample2.mci && mv *.mco ../build/test/ 2>$(DEVNULL) || true
+	$(Q)$(CXX) $(CXXFLAGS) -c $(SRCDIR)/cin_reader.cpp -o $@
 endif
-	@echo MCML test completed. Output files saved to test/
+
+# Testing targets
+.PHONY: test
+test: $(TARGET)
+	$(ECHO) "Running MCML tests with sample files..."
+ifeq ($(OS),Windows_NT)
+	$(Q)if not exist "test" mkdir "test"
+	$(ECHO) "Running: $(PROJECT)$(EXEEXT) sample/sample1.mci"
+	$(Q)cd $(BINDIR) && $(PROJECT)$(EXEEXT) sample/sample1.mci && move *.mco ../build/test/ >$(DEVNULL) 2>&1 || echo Test completed
+else
+	$(Q)mkdir -p test
+	$(ECHO) "Running: $(PROJECT)$(EXEEXT) sample/sample1.mci"
+	$(Q)cd $(BINDIR) && ./$(PROJECT)$(EXEEXT) sample/sample1.mci && mv *.mco ../build/test/ 2>$(DEVNULL) || true
+endif
+	$(ECHO) "MCML test completed. Output files saved to test/"
+
+# Debug build
+.PHONY: debug
+debug:
+	$(ECHO) "Building in debug mode..."
+	$(Q)$(MAKE) BUILD_TYPE=debug all
+
+# Release build (default)
+.PHONY: release  
+release:
+	$(ECHO) "Building in release mode..."
+	$(Q)$(MAKE) BUILD_TYPE=release all
 
 # Copy sample files to bin directory
+.PHONY: copy-samples
 copy-samples: $(BINDIR)
+	$(ECHO) "Copying sample files..."
 ifeq ($(OS),Windows_NT)
-	@echo Copying sample files to bin directory...
-	@if exist "$(SRCDIR)\..\sample" ( \
-		if not exist "$(BINDIR)\sample" mkdir "$(BINDIR)\sample" && \
-		xcopy /E /Y "$(SRCDIR)\..\sample\*" "$(BINDIR)\sample\" >$(DEVNULL) 2>&1 \
-	) else ( \
-		echo Warning: sample directory not found \
-	)
+	$(Q)if exist "$(SRCDIR)$(PATHSEP)..$(PATHSEP)sample" ( \
+		if not exist "$(BINDIR)$(PATHSEP)sample" mkdir "$(BINDIR)$(PATHSEP)sample" && \
+		xcopy /E /Y "$(SRCDIR)$(PATHSEP)..$(PATHSEP)sample$(PATHSEP)*" "$(BINDIR)$(PATHSEP)sample$(PATHSEP)" >$(DEVNULL) 2>&1 \
+	) || echo Sample files not found
 else
-	@echo Copying sample files to bin directory...
-	@if [ -d "$(SRCDIR)/../sample" ]; then \
+	$(Q)if [ -d "$(SRCDIR)/../sample" ]; then \
 		mkdir -p "$(BINDIR)/sample" && \
 		cp -r "$(SRCDIR)/../sample/"* "$(BINDIR)/sample/" 2>$(DEVNULL) || true; \
 	else \
-		echo Warning: sample directory not found; \
+		echo "Sample files not found"; \
 	fi
 endif
 
-$(BINDIR):
-	$(MKDIR_P)
+# Documentation generation with Doxygen
+.PHONY: docs
+docs: $(DOCDIR)
+	$(ECHO) "Generating documentation..."
+	$(Q)command -v doxygen >$(DEVNULL) 2>&1 && ( \
+		echo "PROJECT_NAME = \"MCML $(VERSION)\"" > Doxyfile.tmp && \
+		echo "PROJECT_BRIEF = \"Monte Carlo Multi-Layer Simulation\"" >> Doxyfile.tmp && \
+		echo "INPUT = $(SRCDIR)" >> Doxyfile.tmp && \
+		echo "OUTPUT_DIRECTORY = $(DOCDIR)" >> Doxyfile.tmp && \
+		echo "GENERATE_HTML = YES" >> Doxyfile.tmp && \
+		echo "GENERATE_LATEX = NO" >> Doxyfile.tmp && \
+		echo "EXTRACT_ALL = YES" >> Doxyfile.tmp && \
+		doxygen Doxyfile.tmp && \
+		$(RM) Doxyfile.tmp \
+	) || echo " Doxygen not found - install it to generate documentation"
 
+# Static analysis with clang-tidy (if available)
+.PHONY: analyze
+analyze:
+	$(ECHO) "🔍 Running static analysis..."
+	$(Q)command -v clang-tidy >$(DEVNULL) 2>&1 && ( \
+		clang-tidy $(SRCS) -- $(CXXFLAGS) -I$(SRCDIR) \
+	) || echo "  clang-tidy not found - install it for static analysis"
+
+# Format code with clang-format (if available)
+.PHONY: format
+format:
+	$(ECHO) "Formatting source code..."
+	$(Q)command -v clang-format >$(DEVNULL) 2>&1 && ( \
+		clang-format -i $(SRCS) $(HEADERS) \
+	) || echo "  clang-format not found - install it for code formatting"
+
+# Benchmark target
+.PHONY: benchmark  
+benchmark: $(TARGET)
+	$(ECHO) "  Running benchmark..."
+	$(Q)if [ -f "$(BINDIR)/sample/sample1.mci" ]; then \
+		time $(TARGET) $(BINDIR)/sample/sample1.mci; \
+	else \
+		echo "Sample file not found for benchmark"; \
+	fi
+
+# Install target
+.PHONY: install
+install: $(TARGET)
+	$(ECHO) "Installing MCML..."
+ifdef PREFIX
+	$(call MKDIR_P,$(PREFIX)/bin)
+ifeq ($(OS),Windows_NT)
+	copy "$(TARGET)" "$(PREFIX)$(PATHSEP)bin$(PATHSEP)"
+else
+	cp $(TARGET) $(PREFIX)/bin/
+endif
+	$(ECHO) "Installed to $(PREFIX)/bin/"
+else
+	$(ECHO) "PREFIX not set. Use: make install PREFIX=/usr/local"
+endif
+
+# Clean targets  
+.PHONY: clean
 clean:
-	$(RM) $(OBJS)
-	$(RM) *.mco
+	$(ECHO) "Cleaning build artifacts..."
 ifeq ($(OS),Windows_NT)
-	@if exist "test" rmdir /S /Q "test" >$(DEVNULL) 2>&1 || echo.
+	$(Q)if exist "*.o" $(RM) *.o >$(DEVNULL) 2>&1
+	$(Q)if exist "*.mco" $(RM) *.mco >$(DEVNULL) 2>&1
+	$(Q)if exist "test" $(RMDIR) "test" >$(DEVNULL) 2>&1 || echo.
 else
-	@rm -rf test 2>$(DEVNULL) || true
+	$(Q)$(RM) *.o *.mco 2>$(DEVNULL) || true
+	$(Q)$(RMDIR) test 2>$(DEVNULL) || true
 endif
 
-realclean: clean
+.PHONY: clean-all
+clean-all: clean
+	$(ECHO) "Cleaning all generated files..."
 ifeq ($(OS),Windows_NT)
-	@if exist "$(TARGET)" del /Q "$(TARGET)" >$(DEVNULL) 2>&1 || echo.
-	@if exist "$(BINDIR)\sample" rmdir /S /Q "$(BINDIR)\sample" >$(DEVNULL) 2>&1 || echo.
+	$(Q)if exist "$(TARGET)" $(RM) "$(TARGET)" >$(DEVNULL) 2>&1
+	$(Q)if exist "$(BINDIR)$(PATHSEP)sample" $(RMDIR) "$(BINDIR)$(PATHSEP)sample" >$(DEVNULL) 2>&1 || echo.
+	$(Q)if exist "$(DOCDIR)" $(RMDIR) "$(DOCDIR)" >$(DEVNULL) 2>&1 || echo.
 else
-	$(RM) $(TARGET)
-	@rm -rf "$(BINDIR)/sample" 2>$(DEVNULL) || true
+	$(Q)$(RM) $(TARGET) 2>$(DEVNULL) || true
+	$(Q)$(RMDIR) "$(BINDIR)/sample" $(DOCDIR) 2>$(DEVNULL) || true
 endif
-	$(RM) *.mco
+
+.PHONY: distclean
+distclean: clean-all
+	$(ECHO) "Distribution cleanup..."
+	$(Q)$(RM) Doxyfile.tmp 2>$(DEVNULL) || true
 
 # Help target
+.PHONY: help
 help:
-	@echo MCML $(VERSION) Build System
-	@echo Available targets:
-	@echo   all         - Build MCML and copy samples (default)
-	@echo   mcml        - Build MCML executable and copy samples
-	@echo   test        - Build and test with sample files in build/test/
-	@echo   clean       - Remove object files, test directory, and output
-	@echo   realclean   - Remove all generated files including samples
-	@echo   help        - Show this help message
+	$(ECHO) "MCML $(VERSION) Makefile Help"
+	$(ECHO) ""
+	$(ECHO) "Build Targets:"
+	$(ECHO) "  all          - Build MCML executable (default)"
+	$(ECHO) "  mcml         - Build MCML executable" 
+	$(ECHO) "  debug        - Build with debug flags"
+	$(ECHO) "  release      - Build with optimization flags"
+	$(ECHO) ""
+	$(ECHO) "Testing Targets:"
+	$(ECHO) "  test         - Run test with sample files"
+	$(ECHO) "  benchmark    - Run performance benchmark"
+	$(ECHO) ""
+	$(ECHO) "Quality Targets:"
+	$(ECHO) "  analyze      - Run static analysis (clang-tidy)"
+	$(ECHO) "  format       - Format source code (clang-format)"
+	$(ECHO) "  docs         - Generate documentation (doxygen)"
+	$(ECHO) ""
+	$(ECHO) "Maintenance Targets:"
+	$(ECHO) "  clean        - Remove build artifacts"
+	$(ECHO) "  clean-all    - Remove all generated files"
+	$(ECHO) "  distclean    - Full cleanup for distribution"
+	$(ECHO) "  install      - Install MCML (set PREFIX)"
+	$(ECHO) ""
+	$(ECHO) "Utility Targets:"
+	$(ECHO) "  info         - Show build configuration"
+	$(ECHO) "  help         - Show this help message"
+	$(ECHO) ""
+	$(ECHO) "Variables:"
+	$(ECHO) "  CXX          - C++ compiler (default: g++/c++)"
+	$(ECHO) "  BUILD_TYPE   - debug or release (default: release)"
+	$(ECHO) "  VERBOSE      - Show detailed build output (0 or 1)"  
+	$(ECHO) "  PREFIX       - Installation prefix"
 
-# Phony targets
-.PHONY: all mcml clean realclean test help copy-samples
+# Prevent deletion of intermediate files
+.SECONDARY: $(OBJS)
