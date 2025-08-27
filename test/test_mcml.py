@@ -6,20 +6,30 @@ This is the DEFINITIVE test script for MCML that tests ALL possible user inputs
 in the correct way across different MCML versions.
 
 Test Coverage:
-- Basic main menu operations
-- All 15 change menu commands 
-- File operations and interactive flows
+- Basic main menu operations (help, about, quit)
+- All 15 change menu commands individually
+- File operations and interactive workflows
+- Complex multi-step interactive flows
 - Edge cases and boundary conditions
+- Case insensitive command handling
+- Error conditions and input validation
 
-This script achieves 100% functional coverage and can test any MCML version.
+This script achieves 100% functional coverage and can test any MCML version
+with automatic version detection and path resolution.
 
-Usage:
-    python test_mcml.py [version]
-    
-Examples:
-    python test_mcml.py 2.1.0    # Test MCML 2.1.0
-    python test_mcml.py 3.0.0    # Test MCML 3.0.0
-    python test_mcml.py          # Default to 2.1.0
+Expected Usage:
+    python test_mcml.py          # Test MCML 2.1.0 (default)
+    python test_mcml.py 2.0.0    # Test MCML 2.0.0 (legacy version)  
+    python test_mcml.py 2.1.0    # Test MCML 2.1.0 (optimized version)
+    python test_mcml.py 3.0.0    # Test MCML 3.0.0 (modern version)
+
+Features:
+- 29 comprehensive functional tests
+- Cross-version compatibility validation
+- Automatic executable and sample file discovery
+- Detailed test reporting with execution timing
+- Version-specific handling for legacy compatibility
+- Comprehensive final report with test coverage summary
 """
 
 import subprocess
@@ -30,27 +40,90 @@ import argparse
 from typing import List, Dict, Any
 
 class MCMLTestSuite:
+    """
+    Comprehensive test suite for MCML functionality across all versions.
+    
+    This class provides a complete testing framework for MCML applications,
+    supporting version-specific behaviors and paths while maintaining
+    cross-version compatibility testing.
+    
+    Features:
+    - Automatic version detection and path resolution
+    - 29 comprehensive functional tests covering all MCML operations
+    - Legacy MCML 2.0.0 support with special directory handling
+    - Modern MCML versions (2.1.0, 3.0.0) with optimized execution
+    - Detailed test reporting with execution timing
+    - Interactive workflow validation across all menu systems
+    - Error condition and edge case testing
+    
+    Attributes:
+        version: MCML version being tested (e.g., "2.1.0")
+        base_dir: Base directory for test operations (MCML root)
+        mcml_path: Path to the MCML executable
+        sample_path: Path to sample input file
+        version_dir: Working directory for MCML execution
+        timeout: Default timeout for test operations
+        results: Dictionary storing test results
+        test_count: Number of tests executed
+        passed_count: Number of tests that passed
+    """
     def __init__(self, version="2.1.0", timeout=30):
         self.version = version
-        self.base_dir = os.getcwd()
+        self.base_dir = os.path.dirname(os.getcwd())  # Parent directory (MCML root)
         
+        # Clean up version path if it starts with ../
+        if version.startswith("../"):
+            version = version[3:]  # Remove '../' prefix
+            
         # For MCML 2.0.0, need absolute path to executable but run from version dir
         if version == "2.0.0":
             self.mcml_path = os.path.join(self.base_dir, version, "bin", "mcml.exe")
-            self.sample_path = "sample/sample1.mci"
             self.version_dir = os.path.join(self.base_dir, version)
         else:
-            self.mcml_path = f"{version}/bin/mcml.exe"
-            self.sample_path = f"{version}/sample/sample1.mci"
+            self.mcml_path = os.path.join(self.base_dir, version, "bin", "mcml.exe")
             self.version_dir = self.base_dir
             
         self.timeout = timeout
         self.results = {}
         self.test_count = 0
         self.passed_count = 0
+    
+    def get_sample_path(self, filename="sample1.mci"):
+        """Get the correct sample file path for different MCML versions."""
+        if self.version == "1.2.2":
+            # Version 1.2.2 has sample.mci instead of sample1.mci
+            if filename == "sample1.mci":
+                filename = "sample.mci"
+            return os.path.join(self.version, "sample", filename)
+        elif self.version == "2.0.0":
+            # Version 2.0.0 needs relative path from version directory
+            return os.path.join("sample", filename)
+        else:
+            # Versions 2.1.0+ use full path from MCML root
+            return os.path.join(self.version, "sample", filename)
         
     def run_test(self, name, input_sequence, expected_patterns=None, forbidden_patterns=None, timeout=None, check_functional_success=True):
-        """Run a single MCML test with flexible functional analysis"""
+        """
+        Execute a single MCML test with comprehensive validation.
+        
+        Args:
+            name: Descriptive name for the test
+            input_sequence: String of inputs to send to MCML (newlines for Enter)
+            expected_patterns: List of text patterns that should appear in output
+            forbidden_patterns: List of text patterns that should NOT appear in output
+            timeout: Maximum seconds to wait for completion (uses default if None)
+            check_functional_success: Whether to validate functional behavior
+            
+        Returns:
+            bool: True if test passed, False otherwise
+            
+        Features:
+        - Version-specific encoding handling (UTF-8 for 2.0.0)
+        - Flexible timeout management
+        - Pattern matching validation
+        - Error condition detection
+        - Comprehensive result logging
+        """
         test_timeout = timeout or self.timeout
         self.test_count += 1
         
@@ -156,7 +229,7 @@ class MCMLTestSuite:
                 'input_sequence': input_sequence.replace('\n', '\\n'),
                 'timed_out': False
             }
-            print(f"    💥 ERROR - {str(e)}")
+            print(f"    ERROR - {str(e)}")
         
         self.results[name] = result
         return result
@@ -207,7 +280,7 @@ class MCMLTestSuite:
         # Test file loading with modification for all versions
         self.run_test(
             "File Operations - Load and Modify",
-            f"m\n{self.sample_path}\ny\nq\nn\n",
+            f"m\n{self.get_sample_path()}\ny\nq\nn\n",
             ["parameters", "read", "Change menu"],
             timeout=20
         )
@@ -215,7 +288,7 @@ class MCMLTestSuite:
         # Test file loading without modification
         self.run_test(
             "File Operations - Load No Changes",
-            f"m\n{self.sample_path}\nn\n",
+            f"m\n{self.get_sample_path()}\nn\n",
             ["parameters", "read"],
             timeout=20
         )
@@ -247,52 +320,52 @@ class MCMLTestSuite:
             change_menu_tests = [
                 # Print options - version-specific patterns
                 ("o - Print Input on Screen", 
-                 f"m\n{self.sample_path}\ny\no\n\n\n\nq\nn\n", 
+                 f"m\n{self.get_sample_path()}\ny\no\n\n\n\nq\nn\n", 
                  ["Change menu"]),  # Focus on menu access, not pager details
                 
                 # Modification commands - focus on menu access, not specific text  
-                ("m - Change Media List", f"m\n{self.sample_path}\ny\nm\nn\nq\nn\n", ["Change menu"]),
-                ("f - Change Output File", f"m\n{self.sample_path}\ny\nf\nsample1a.mco\nw\nq\nn\n", ["Change menu"]),
-                ("d - Change Grid Spacing", f"m\n{self.sample_path}\ny\nd\n0.1 0.1 0.1\nq\nn\n", ["Change menu"]),
-                ("n - Change Grid Size", f"m\n{self.sample_path}\ny\nn\n1 1 1 30\nq\nn\n", ["Change menu"]),
-                ("c - Change Data Categories", f"m\n{self.sample_path}\ny\nc\nn\nq\nn\n", ["Change menu"]),
-                ("w - Change Weight Threshold", f"m\n{self.sample_path}\ny\nw\n0.0001\nq\nn\n", ["Change menu"]),
-                ("r - Change Random Seed", f"m\n{self.sample_path}\ny\nr\n1\nq\nn\n", ["Change menu"]),
-                ("l - Change Layer Specs", f"m\n{self.sample_path}\ny\nl\nn\nq\nn\n", ["Change menu"]),
-                ("p - Change Photon Number", f"m\n{self.sample_path}\ny\np\n1000000 10:0\nq\nn\n", ["Change menu"]),
-                ("s - Change Source Type", f"m\n{self.sample_path}\ny\ns\npencil\nq\nn\n", ["Change menu"]),
-                ("z - Change Source Position", f"m\n{self.sample_path}\ny\nz\n0\nq\nn\n", ["Change menu"]),
+                ("m - Change Media List", f"m\n{self.get_sample_path()}\ny\nm\nn\nq\nn\n", ["Change menu"]),
+                ("f - Change Output File", f"m\n{self.get_sample_path()}\ny\nf\nsample1a.mco\nw\nq\nn\n", ["Change menu"]),
+                ("d - Change Grid Spacing", f"m\n{self.get_sample_path()}\ny\nd\n0.1 0.1 0.1\nq\nn\n", ["Change menu"]),
+                ("n - Change Grid Size", f"m\n{self.get_sample_path()}\ny\nn\n1 1 1 30\nq\nn\n", ["Change menu"]),
+                ("c - Change Data Categories", f"m\n{self.get_sample_path()}\ny\nc\nn\nq\nn\n", ["Change menu"]),
+                ("w - Change Weight Threshold", f"m\n{self.get_sample_path()}\ny\nw\n0.0001\nq\nn\n", ["Change menu"]),
+                ("r - Change Random Seed", f"m\n{self.get_sample_path()}\ny\nr\n1\nq\nn\n", ["Change menu"]),
+                ("l - Change Layer Specs", f"m\n{self.get_sample_path()}\ny\nl\nn\nq\nn\n", ["Change menu"]),
+                ("p - Change Photon Number", f"m\n{self.get_sample_path()}\ny\np\n1000000 10:0\nq\nn\n", ["Change menu"]),
+                ("s - Change Source Type", f"m\n{self.get_sample_path()}\ny\ns\npencil\nq\nn\n", ["Change menu"]),
+                ("z - Change Source Position", f"m\n{self.get_sample_path()}\ny\nz\n0\nq\nn\n", ["Change menu"]),
                 
                 # Navigation commands
-                ("h - Change Menu Help", f"m\n{self.sample_path}\ny\nh\nq\nn\n", ["Change menu", "help"]),
-                ("q - Quit Change Menu", f"m\n{self.sample_path}\ny\nq\nn\n", ["Change menu"]),
-                ("x - Exit to Main Menu", f"m\n{self.sample_path}\ny\nx\nn\nq\ny\n", ["Change menu", "Main menu"]),
+                ("h - Change Menu Help", f"m\n{self.get_sample_path()}\ny\nh\nq\nn\n", ["Change menu", "help"]),
+                ("q - Quit Change Menu", f"m\n{self.get_sample_path()}\ny\nq\nn\n", ["Change menu"]),
+                ("x - Exit to Main Menu", f"m\n{self.get_sample_path()}\ny\nx\nn\nq\ny\n", ["Change menu", "Main menu"]),
             ]
         else:
             # For MCML 2.1.0 and 3.0.0 - use original sequence
             change_menu_tests = [
                 # Print options - version-specific patterns
                 ("o - Print Input on Screen", 
-                 f"m\n{self.sample_path}\ny\no\n\n\n\nq\nn\n", 
+                 f"m\n{self.get_sample_path()}\ny\no\n\n\n\nq\nn\n", 
                  ["Change menu"]),  # Focus on menu access, not pager details
                 
                 # Modification commands - focus on menu access, not specific text  
-                ("m - Change Media List", f"m\n{self.sample_path}\ny\nm\nn\nq\nn\n", ["Change menu"]),
-                ("f - Change Output File", f"m\n{self.sample_path}\ny\nf\nsample1a.mco\na\nq\nn\n", ["Change menu"]),
-                ("d - Change Grid Spacing", f"m\n{self.sample_path}\ny\nd\n0.1 0.1 0.1\nq\nn\n", ["Change menu"]),
-                ("n - Change Grid Size", f"m\n{self.sample_path}\ny\nn\n1 1 1 30\nq\nn\n", ["Change menu"]),
-                ("c - Change Data Categories", f"m\n{self.sample_path}\ny\nc\nn\nq\nn\n", ["Change menu"]),
-                ("w - Change Weight Threshold", f"m\n{self.sample_path}\ny\nw\n0.0001\nq\nn\n", ["Change menu"]),
-                ("r - Change Random Seed", f"m\n{self.sample_path}\ny\nr\n1\nq\nn\n", ["Change menu"]),
-                ("l - Change Layer Specs", f"m\n{self.sample_path}\ny\nl\nn\nq\nn\n", ["Change menu"]),
-                ("p - Change Photon Number", f"m\n{self.sample_path}\ny\np\n1000000 10:0\nq\nn\n", ["Change menu"]),
-                ("s - Change Source Type", f"m\n{self.sample_path}\ny\ns\npencil\nq\nn\n", ["Change menu"]),
-                ("z - Change Source Position", f"m\n{self.sample_path}\ny\nz\n0\nq\nn\n", ["Change menu"]),
+                ("m - Change Media List", f"m\n{self.get_sample_path()}\ny\nm\nn\nq\nn\n", ["Change menu"]),
+                ("f - Change Output File", f"m\n{self.get_sample_path()}\ny\nf\nsample1a.mco\na\nq\nn\n", ["Change menu"]),
+                ("d - Change Grid Spacing", f"m\n{self.get_sample_path()}\ny\nd\n0.1 0.1 0.1\nq\nn\n", ["Change menu"]),
+                ("n - Change Grid Size", f"m\n{self.get_sample_path()}\ny\nn\n1 1 1 30\nq\nn\n", ["Change menu"]),
+                ("c - Change Data Categories", f"m\n{self.get_sample_path()}\ny\nc\nn\nq\nn\n", ["Change menu"]),
+                ("w - Change Weight Threshold", f"m\n{self.get_sample_path()}\ny\nw\n0.0001\nq\nn\n", ["Change menu"]),
+                ("r - Change Random Seed", f"m\n{self.get_sample_path()}\ny\nr\n1\nq\nn\n", ["Change menu"]),
+                ("l - Change Layer Specs", f"m\n{self.get_sample_path()}\ny\nl\nn\nq\nn\n", ["Change menu"]),
+                ("p - Change Photon Number", f"m\n{self.get_sample_path()}\ny\np\n1000000 10:0\nq\nn\n", ["Change menu"]),
+                ("s - Change Source Type", f"m\n{self.get_sample_path()}\ny\ns\npencil\nq\nn\n", ["Change menu"]),
+                ("z - Change Source Position", f"m\n{self.get_sample_path()}\ny\nz\n0\nq\nn\n", ["Change menu"]),
                 
                 # Navigation commands
-                ("h - Change Menu Help", f"m\n{self.sample_path}\ny\nh\nq\nn\n", ["Change menu", "help"]),
-                ("q - Quit Change Menu", f"m\n{self.sample_path}\ny\nq\nn\n", ["Change menu"]),
-                ("x - Exit to Main Menu", f"m\n{self.sample_path}\ny\nx\nn\nq\ny\n", ["Change menu", "Main menu"]),
+                ("h - Change Menu Help", f"m\n{self.get_sample_path()}\ny\nh\nq\nn\n", ["Change menu", "help"]),
+                ("q - Quit Change Menu", f"m\n{self.get_sample_path()}\ny\nq\nn\n", ["Change menu"]),
+                ("x - Exit to Main Menu", f"m\n{self.get_sample_path()}\ny\nx\nn\nq\ny\n", ["Change menu", "Main menu"]),
             ]
         
         for test_name, input_seq, expected_patterns in change_menu_tests:
@@ -310,14 +383,14 @@ class MCMLTestSuite:
         if self.version == "2.0.0":
             self.run_test(
                 "Interactive Flow - Multiple Changes",
-                f"m\n{self.sample_path}\ny\nf\nsample1a.mco\nw\nd\n0.05 0.05 0.05\nw\n0.001\nq\nn\n",
+                f"m\n{self.get_sample_path()}\ny\nf\nsample1a.mco\nw\nd\n0.05 0.05 0.05\nw\n0.001\nq\nn\n",
                 ["Change menu"],  # Just verify we can access change menu
                 timeout=30
             )
         else:
             self.run_test(
                 "Interactive Flow - Multiple Changes",
-                f"m\n{self.sample_path}\ny\nf\nsample1a.mco\na\nd\n0.05 0.05 0.05\nw\n0.001\nq\nn\n",
+                f"m\n{self.get_sample_path()}\ny\nf\nsample1a.mco\na\nd\n0.05 0.05 0.05\nw\n0.001\nq\nn\n",
                 ["Change menu"],  # Just verify we can access change menu
                 timeout=30
             )
@@ -325,7 +398,7 @@ class MCMLTestSuite:
         # Test help flows
         self.run_test(
             "Interactive Flow - Help Navigation",
-            f"h\nm\n{self.sample_path}\ny\nh\nq\nn\nq\ny\n",
+            f"h\nm\n{self.get_sample_path()}\ny\nh\nq\nn\nq\ny\n",
             ["help", "Change menu"],  # Focus on functional access
             timeout=30
         )
@@ -333,7 +406,7 @@ class MCMLTestSuite:
         # Test case insensitivity 
         self.run_test(
             "Interactive Flow - Case Insensitive",
-            f"M\n{self.sample_path}\nY\nH\nQ\nN\nQ\nY\n",
+            f"M\n{self.get_sample_path()}\nY\nH\nQ\nN\nQ\nY\n",
             ["Change menu", "help"],
             timeout=25
         )
@@ -347,7 +420,7 @@ class MCMLTestSuite:
         # Test rapid command sequences with file operations for all versions
         self.run_test(
             "Edge Case - Rapid Commands",
-            f"h\na\nh\nm\n{self.sample_path}\ny\nh\nq\nn\nq\ny\n",
+            f"h\na\nh\nm\n{self.get_sample_path()}\ny\nh\nq\nn\nq\ny\n",
             ["help", "Change menu"],  # Remove specific about text
             timeout=25
         )
@@ -355,7 +428,7 @@ class MCMLTestSuite:
         # Test maximum value inputs for grid spacing
         self.run_test(
             "Edge Case - Large Grid Values",
-            f"m\n{self.sample_path}\ny\nd\n1.0 1.0 1.0\nq\nn\n",
+            f"m\n{self.get_sample_path()}\ny\nd\n1.0 1.0 1.0\nq\nn\n",
             ["Change menu"],  # Focus on functional success
             timeout=20
         )
@@ -363,7 +436,7 @@ class MCMLTestSuite:
         # Test minimal value inputs
         self.run_test(
             "Edge Case - Minimal Values",
-            f"m\n{self.sample_path}\ny\nw\n0.0000001\nq\nn\n",
+            f"m\n{self.get_sample_path()}\ny\nw\n0.0000001\nq\nn\n",
             ["Change menu"],  # Focus on functional success
             timeout=20
         )
@@ -403,15 +476,6 @@ class MCMLTestSuite:
         print(f"Success Rate: {success_rate:.1f}%")
         print(f"Execution Time: {execution_time:.2f} seconds")
         
-        if success_rate == 100.0:
-            print(f"\nPERFECT SCORE! All MCML {self.version} functionality verified working!")
-        elif success_rate >= 95.0:
-            print(f"\nEXCELLENT! MCML {self.version} is highly functional")
-        elif success_rate >= 90.0:
-            print(f"\nVERY GOOD! MCML {self.version} functionality mostly verified")
-        else:
-            print("\nSome issues found that need attention")
-        
         if failed_tests:
             print(f"\nFailed Tests ({len(failed_tests)}):")
             for test_name in failed_tests:
@@ -431,7 +495,21 @@ class MCMLTestSuite:
         print("=" * 80)
 
 def main():
-    """Main test runner with command-line argument support"""
+    """
+    Main test runner with command-line argument support and version validation.
+    
+    Provides a complete command-line interface for MCML testing with:
+    - Automatic version detection and validation
+    - Helpful error messages for invalid versions  
+    - Discovery of available MCML versions
+    - Comprehensive test execution and reporting
+    
+    Supports all MCML versions (2.0.0, 2.1.0, 3.0.0) with version-specific
+    handling for optimal compatibility and performance.
+    
+    Returns:
+        Exit code 0 if all tests pass, 1 if any tests fail or version not found
+    """
     parser = argparse.ArgumentParser(
         description="MCML Comprehensive Test Suite - Version Agnostic",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -453,16 +531,23 @@ Examples:
     version = args.version
     
     # Validate version directory exists
-    if not os.path.exists(version):
+    version_path = f"..{os.sep}{version}"
+    if not os.path.exists(version_path):
         print(f"ERROR: Version directory '{version}' not found")
         print("Available versions:")
-        for item in os.listdir('.'):
-            if os.path.isdir(item) and os.path.exists(os.path.join(item, 'bin', 'mcml.exe')):
+        parent_dir = ".."
+        for item in os.listdir(parent_dir):
+            item_path = os.path.join(parent_dir, item)
+            if os.path.isdir(item_path) and os.path.exists(os.path.join(item_path, 'bin', 'mcml.exe')):
                 print(f"  - {item}")
         sys.exit(1)
     
-    mcml_exe = f"{version}/bin/mcml.exe"
-    sample_file = f"{version}/sample/sample1.mci"
+    mcml_exe = f"..{os.sep}{version}{os.sep}bin{os.sep}mcml.exe"
+    # Get correct sample file path for version
+    if version == "1.2.2":
+        sample_file = f"..{os.sep}{version}{os.sep}sample{os.sep}sample.mci"
+    else:
+        sample_file = f"..{os.sep}{version}{os.sep}sample{os.sep}sample1.mci"
     
     if not os.path.exists(mcml_exe):
         print(f"ERROR: MCML executable not found at {mcml_exe}")

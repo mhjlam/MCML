@@ -388,11 +388,21 @@ double BessI0(const double x) {
  ****/
 short GetShort(short Lo, short Hi) {
 	short x;
+	char input_buffer[STRLEN];
 
-	scanf("%hd", &x);
+	if (fgets(input_buffer, sizeof(input_buffer), stdin) != NULL) {
+		sscanf(input_buffer, "%hd", &x);
+	} else {
+		x = Lo;  // Default to minimum value on error
+	}
+	
 	while (x < Lo || x > Hi) {
 		printf("...Parameter out of range.  Try again: ");
-		scanf("%hd", &x);
+		if (fgets(input_buffer, sizeof(input_buffer), stdin) != NULL) {
+			sscanf(input_buffer, "%hd", &x);
+		} else {
+			x = Lo;  // Default to minimum value on error
+		}
 	}
 	return (x);
 }
@@ -401,11 +411,21 @@ short GetShort(short Lo, short Hi) {
  ****/
 float GetFloat(float Lo, float Hi) {
 	float x;
+	char input_buffer[STRLEN];
 
-	scanf("%f", &x);
+	if (fgets(input_buffer, sizeof(input_buffer), stdin) != NULL) {
+		sscanf(input_buffer, "%f", &x);
+	} else {
+		x = Lo;  // Default to minimum value on error
+	}
+	
 	while (x < Lo || x > Hi) {
 		printf("...Parameter out of range.  Try again: ");
-		scanf("%f", &x);
+		if (fgets(input_buffer, sizeof(input_buffer), stdin) != NULL) {
+			sscanf(input_buffer, "%f", &x);
+		} else {
+			x = Lo;  // Default to minimum value on error
+		}
 	}
 	return (x);
 }

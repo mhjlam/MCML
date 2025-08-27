@@ -220,10 +220,16 @@ void GetArbitraryBeam(BeamStru *restrict Beam_Ptr) {
  ****/
 void LaserBeam(BeamStru *Beam_Ptr) {
 	char cmd_str[STRLEN];
+	char input_buffer[STRLEN];
 
 	printf("Beam profile:f=flat, g=Gaussian, a=arbitrary, q=quit: ");
 	do {
-		scanf("%s", cmd_str);
+		if (fgets(input_buffer, sizeof(input_buffer), stdin) != NULL) {
+			// Remove trailing newline and extract first word
+			sscanf(input_buffer, "%s", cmd_str);
+		} else {
+			cmd_str[0] = '\0';  // Handle EOF/error case
+		}
 	}
 	while (!strlen(cmd_str));
 
@@ -250,12 +256,17 @@ void ConvError(float *eps) {
  ****/
 void ConvResolution(ConvStru *Conv_Ptr) {
 	char string[STRLEN];
+	char input_buffer[STRLEN];
 
 	printf("Current resolution: %10.2g cm and number of points: %4d\n", Conv_Ptr->drc, Conv_Ptr->nrc);
 	do {
 		printf("Do you want to change them? (Y/N): ");
 		do {
-			scanf("%s", string);
+			if (fgets(input_buffer, sizeof(input_buffer), stdin) != NULL) {
+				sscanf(input_buffer, "%s", string);
+			} else {
+				strcpy(string, "");
+			}
 		}
 		while (!strlen(string));
 	}

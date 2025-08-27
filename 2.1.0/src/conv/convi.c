@@ -2237,7 +2237,7 @@ void ReadMcoFile(InStru *In_Ptr, OutStru *Out_Ptr, ConvStru *Conv_Ptr) {
 		Conv_Ptr->fversion = 1;
 		data_complete = ReadOutMCV1(infile, In_Ptr, Out_Ptr);
 	}
-	else if (CheckFileVersionQ(buf, "mcmloA2.0")) {
+	else if (CheckFileVersionQ(buf, "mcmloA2.0") || CheckFileVersionQ(buf, "mcmloA2.1")) {
 		FreeData(In_Ptr, Out_Ptr);
 		Conv_Ptr->datain = 0;
 		Conv_Ptr->fversion = 2;
