@@ -5,15 +5,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(MCML VERSION 3.0.0 LANGUAGES CXX)
 
-# Force CMake to put all its generated files in the output subdirectory
-if(NOT DEFINED CMAKE_BINARY_DIR OR CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
-    set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/output)
-    set(CMAKE_CURRENT_BINARY_DIR ${CMAKE_BINARY_DIR})
-endif()
-
-# Ensure output directory exists
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR})
-
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -89,14 +80,17 @@ set(CONV_SOURCES
     ${CONV_SRC_DIR}/main.cpp
     ${CONV_SRC_DIR}/beam_profile.cpp
     ${CONV_SRC_DIR}/conv.cpp
+    ${CONV_SRC_DIR}/convolution_engine.cpp
+    ${CONV_SRC_DIR}/mcml_reader.cpp
+    ${CONV_SRC_DIR}/math_utils.cpp
     ${CONV_SRC_DIR}/processor.cpp
-    ${CONV_SRC_DIR}/stubs.cpp
 )
 
 # Define CONV header files
 set(CONV_HEADERS
     ${CONV_SRC_DIR}/conv.hpp
     ${CONV_SRC_DIR}/matrix.hpp
+    ${CONV_SRC_DIR}/math_utils.hpp
     ${CONV_SRC_DIR}/beam_profile.hpp
     ${CONV_SRC_DIR}/binary_tree.hpp
     ${CONV_SRC_DIR}/mcml_reader.hpp

@@ -234,6 +234,42 @@ private:
 	 */
 	void log_error(const std::string& message) const;
 
+	/**
+	 * @brief Configure flat beam interactively
+	 */
+	void configure_flat_beam();
+
+	/**
+	 * @brief Configure Gaussian beam interactively
+	 */
+	void configure_gaussian_beam();
+
+	/**
+	 * @brief Configure arbitrary beam from file interactively
+	 */
+	void configure_arbitrary_beam();
+
+	/**
+	 * @brief Extract specific quantity to file
+	 * @param quantity Name of quantity to extract
+	 * @param filename Output filename
+	 * @return true if successful
+	 */
+	bool extract_quantity_to_file(const std::string& quantity, const std::string& filename);
+
+	/**
+	 * @brief Perform convolution and save results
+	 */
+	void perform_convolution_extraction();
+
+	/**
+	 * @brief Write convolution results to file
+	 * @param result Convolution results
+	 * @param filename Output filename
+	 * @return true if successful
+	 */
+	bool write_convolution_results(const conv::ConvolutionResult& result, const std::string& filename);
+
 	// Data members
 	std::unique_ptr<McmlDataReader> m_reader;
 	std::unique_ptr<BeamProfile> m_beam;

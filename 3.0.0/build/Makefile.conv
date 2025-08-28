@@ -1,9 +1,9 @@
-# CONV 2.1.0 - Data conversion utility for MCML
+# CONV 3.0.0 - Data conversion utility for MCML
 # Unified Makefile for building CONV only
 
 # Project info
 PROJECT = conv
-VERSION = 2.1.0
+VERSION = 3.0.0
 SRCDIR = ../src/conv
 BINDIR = ../bin
 BUILDDIR = output
@@ -16,22 +16,22 @@ ifeq ($(OS),Windows_NT)
 	RM = del /Q
 	DEVNULL = NUL
 	
-	# For Windows, use gcc by default (user can override with make CC=clang or make CC=cl)
-	CC = gcc
-	ifeq ($(CC),cl)
-		CFLAGS = /EHsc /std:c17 /W3 /O2
+	# For Windows, use g++ by default (C++20 support)
+	CXX = g++
+	ifeq ($(CXX),cl)
+		CXXFLAGS = /EHsc /std:c++20 /W4 /O2
 		LIBS = 
 		COMPILER_FOUND = cl
-	else ifeq ($(CC),clang)
-		# Clang on Windows - math functions are in the standard library
-		CFLAGS = -std=c17 -g -Wall -Wextra -O2 -fno-common
+	else ifeq ($(CXX),clang++)
+		# Clang++ on Windows
+		CXXFLAGS = -std=c++20 -g -Wall -Wextra -O2
 		LIBS = 
-		COMPILER_FOUND = $(CC)
+		COMPILER_FOUND = $(CXX)
 	else
-		# For gcc and other GCC-compatible compilers
-		CFLAGS = -std=c17 -g -Wall -Wextra -O2 -fno-common
-		LIBS = -lm
-		COMPILER_FOUND = $(CC)
+		# For g++ and other GCC-compatible compilers
+		CXXFLAGS = -std=c++20 -g -Wall -Wextra -O2
+		LIBS = 
+		COMPILER_FOUND = $(CXX)
 	endif
 else
 	# Unix-like environment (Linux, macOS, WSL when not Windows_NT)
@@ -39,20 +39,40 @@ else
 	MKDIR_P = mkdir -p $(BINDIR)
 	RM = rm -f
 	DEVNULL = /dev/null
-	# Unix-like systems - use cc by default
-	CC = cc
-	CFLAGS = -std=c17 -g -Wall -Wextra -O2 -fno-common
-	LIBS = -lm
-	COMPILER_FOUND = $(CC)
+	# Unix-like systems - use g++ by default
+	CXX = g++
+	CXXFLAGS = -std=c++20 -g -Wall -Wextra -O2
+	LIBS = 
+	COMPILER_FOUND = $(CXX)
 endif
 
 TARGET = $(BINDIR)/$(PROJECT)$(EXEEXT)
-INDENT_OPT = -br -brs -nbs -ci4 -cli0 -bli0 -l120 -ncdb -nce -nlp -npcs -npsl -i4 -nut
 
-# Source files for CONV
-SRCS = $(SRCDIR)/convconv.c $(SRCDIR)/convi.c $(SRCDIR)/conviso.c $(SRCDIR)/convlib.c $(SRCDIR)/convmain.c $(SRCDIR)/convo.c
-OBJS = $(BUILDDIR)/convconv.o $(BUILDDIR)/convi.o $(BUILDDIR)/conviso.o $(BUILDDIR)/convlib.o $(BUILDDIR)/convmain.o $(BUILDDIR)/convo.o
-HEADERS = $(SRCDIR)/conv.h $(SRCDIR)/convmcml.h
+# Source files for CONV 3.0.0 (C++)
+SRCS = $(SRCDIR)/main.cpp \
+       $(SRCDIR)/beam_profile.cpp \
+       $(SRCDIR)/conv.cpp \
+       $(SRCDIR)/convolution_engine.cpp \
+       $(SRCDIR)/mcml_reader.cpp \
+       $(SRCDIR)/math_utils.cpp \
+       $(SRCDIR)/processor.cpp
+
+OBJS = $(BUILDDIR)/main.o \
+       $(BUILDDIR)/beam_profile.o \
+       $(BUILDDIR)/conv.o \
+       $(BUILDDIR)/convolution_engine.o \
+       $(BUILDDIR)/mcml_reader.o \
+       $(BUILDDIR)/math_utils.o \
+       $(BUILDDIR)/processor.o
+
+HEADERS = $(SRCDIR)/conv.hpp \
+          $(SRCDIR)/beam_profile.hpp \
+          $(SRCDIR)/binary_tree.hpp \
+          $(SRCDIR)/convolution_engine.hpp \
+          $(SRCDIR)/mcml_reader.hpp \
+          $(SRCDIR)/math_utils.hpp \
+          $(SRCDIR)/matrix.hpp \
+          $(SRCDIR)/processor.hpp
 
 # Create necessary directories
 $(BUILDDIR):
@@ -62,61 +82,75 @@ else
 	mkdir -p $(BUILDDIR)
 endif
 
+$(BINDIR):
+ifeq ($(OS),Windows_NT)
+	if not exist "$(BINDIR)" mkdir "$(BINDIR)"
+else
+	mkdir -p $(BINDIR)
+endif
+
 # Default target
 all: $(BINDIR) $(BUILDDIR) $(TARGET) copy-samples
-	@echo Built with $(COMPILER_FOUND) compiler
+	@echo Built CONV 3.0.0 with $(COMPILER_FOUND) compiler
 
 # Build CONV executable in bin directory
 conv: $(TARGET) copy-samples
 
-$(TARGET): $(BUILDDIR) $(OBJS)
-ifeq ($(CC),cl)
-	$(CC) $(CFLAGS) $(OBJS) /Fe$@ $(LIBS)
+$(TARGET): $(BUILDDIR) $(BINDIR) $(OBJS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) $(OBJS) /Fe$@ $(LIBS)
 else
-	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LIBS)
 endif
 
 # Object file rules (object files go in output directory)
-$(BUILDDIR)/convconv.o: $(SRCDIR)/convconv.c $(HEADERS)
-ifeq ($(CC),cl)
-	$(CC) $(CFLAGS) /c $(SRCDIR)/convconv.c /Fo$@
+$(BUILDDIR)/main.o: $(SRCDIR)/main.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/main.cpp /Fo$@
 else
-	$(CC) $(CFLAGS) -c $(SRCDIR)/convconv.c -o $@
+	$(CXX) $(CXXFLAGS) -I$(SRCDIR) -c $(SRCDIR)/main.cpp -o $@
 endif
 
-$(BUILDDIR)/convi.o: $(SRCDIR)/convi.c $(HEADERS)
-ifeq ($(CC),cl)
-	$(CC) $(CFLAGS) /c $(SRCDIR)/convi.c /Fo$@
+$(BUILDDIR)/beam_profile.o: $(SRCDIR)/beam_profile.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/beam_profile.cpp /Fo$@
 else
-	$(CC) $(CFLAGS) -c $(SRCDIR)/convi.c -o $@
+	$(CXX) $(CXXFLAGS) -I$(SRCDIR) -c $(SRCDIR)/beam_profile.cpp -o $@
 endif
 
-$(BUILDDIR)/conviso.o: $(SRCDIR)/conviso.c $(HEADERS)
-ifeq ($(CC),cl)
-	$(CC) $(CFLAGS) /c $(SRCDIR)/conviso.c /Fo$@
+$(BUILDDIR)/conv.o: $(SRCDIR)/conv.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/conv.cpp /Fo$@
 else
-	$(CC) $(CFLAGS) -c $(SRCDIR)/conviso.c -o $@
+	$(CXX) $(CXXFLAGS) -I$(SRCDIR) -c $(SRCDIR)/conv.cpp -o $@
 endif
 
-$(BUILDDIR)/convlib.o: $(SRCDIR)/convlib.c $(HEADERS)
-ifeq ($(CC),cl)
-	$(CC) $(CFLAGS) /c $(SRCDIR)/convlib.c /Fo$@
+$(BUILDDIR)/convolution_engine.o: $(SRCDIR)/convolution_engine.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/convolution_engine.cpp /Fo$@
 else
-	$(CC) $(CFLAGS) -c $(SRCDIR)/convlib.c -o $@
+	$(CXX) $(CXXFLAGS) -I$(SRCDIR) -c $(SRCDIR)/convolution_engine.cpp -o $@
 endif
 
-$(BUILDDIR)/convmain.o: $(SRCDIR)/convmain.c $(HEADERS)
-ifeq ($(CC),cl)
-	$(CC) $(CFLAGS) /c $(SRCDIR)/convmain.c /Fo$@
+$(BUILDDIR)/mcml_reader.o: $(SRCDIR)/mcml_reader.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/mcml_reader.cpp /Fo$@
 else
-	$(CC) $(CFLAGS) -c $(SRCDIR)/convmain.c -o $@
+	$(CXX) $(CXXFLAGS) -I$(SRCDIR) -c $(SRCDIR)/mcml_reader.cpp -o $@
 endif
 
-$(BUILDDIR)/convo.o: $(SRCDIR)/convo.c $(HEADERS)
-ifeq ($(CC),cl)
-	$(CC) $(CFLAGS) /c $(SRCDIR)/convo.c /Fo$@
+$(BUILDDIR)/math_utils.o: $(SRCDIR)/math_utils.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/math_utils.cpp /Fo$@
 else
-	$(CC) $(CFLAGS) -c $(SRCDIR)/convo.c -o $@
+	$(CXX) $(CXXFLAGS) -I$(SRCDIR) -c $(SRCDIR)/math_utils.cpp -o $@
+endif
+
+$(BUILDDIR)/processor.o: $(SRCDIR)/processor.cpp $(HEADERS)
+ifeq ($(CXX),cl)
+	$(CXX) $(CXXFLAGS) /c $(SRCDIR)/processor.cpp /Fo$@
+else
+	$(CXX) $(CXXFLAGS) -I$(SRCDIR) -c $(SRCDIR)/processor.cpp -o $@
 endif
 
 # Copy sample files to bin directory
@@ -160,9 +194,6 @@ else
 	fi
 endif
 	@echo CONV test completed successfully.
-
-$(BINDIR):
-	$(MKDIR_P)
 
 clean:
 ifeq ($(OS),Windows_NT)

@@ -219,6 +219,12 @@ private:
 	 * @param file Input file stream
 	 */
 	void parse_output_data(std::ifstream& file);
+	
+	/**
+	 * @brief Read array sections from file
+	 * @param file Input file stream
+	 */
+	void read_array_sections(std::ifstream& file);
 
 	/**
 	 * @brief Validate input data consistency
