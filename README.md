@@ -10,60 +10,60 @@ The MCML and CONV programs have a complex version history spanning over 30 years
 
 ### 1.0 - 1.1
 
-- **Date**: 1991-1993
-- **Authors**: Likely Lihong Wang and Steven L. Jacques
-- **Source**: Unknown/unavailable
+- **Date**: 1991-1993.
+- **Authors**: Likely Lihong Wang and Steven L. Jacques.
+- **Source**: Unknown/unavailable.
 
 ### 1.2
 
 - **Date**: 1993
-- **Authors**: Lihong Wang and Steven L. Jacques
-- **Source**: <https://omlc.org/software/mc/mcml>
-- **Changes**: Conform to ANSI Standard C and add angularly resolved reflectance and transmittance
+- **Authors**: Lihong Wang and Steven L. Jacques.
+- **Source**: <https://omlc.org/software/mc/mcml>.
+- **Changes**: Conform to ANSI Standard C and add angularly resolved reflectance and transmittance.
 
 ### 1.2.1
 
-- **Date**: 1993-1996
-- **Authors**: Lihong Wang and Steven L. Jacques
-- **Source**: Unknown/unavailable
-- **Changes**: Fix memory issues memory corruption bug
+- **Date**: 1993-1996.
+- **Authors**: Lihong Wang and Steven L. Jacques.
+- **Source**: Unknown/unavailable.
+- **Changes**: Fix memory issues memory corruption bug.
 
 ### 1.2.2
 
-- **Date**: 1996-2000
-- **Author**: Lihong Wang
-- **Source**: <https://github.com/lhvwang/MCML>
-- **Changes**: Fix bugs introduced in 1.2.1
+- **Date**: 1996-2000.
+- **Author**: Lihong Wang.
+- **Source**: <https://github.com/lhvwang/MCML>.
+- **Changes**: Fix bugs introduced in 1.2.1.
 
 ### 2.0
 
-- **Date**: 1996
-- **Author**: Lihong Wang and Liqiong Zheng
-- **Source**: <https://github.com/lhvwang/MCML>
-- **Changes**: Add interactive parameter input, multiple scoring, time-resolved simulation, adjustable/isotropic sources, simulation time control, standard error computation, continuation runs
+- **Date**: 1996.
+- **Author**: Lihong Wang and Liqiong Zheng.
+- **Source**: <https://github.com/lhvwang/MCML>.
+- **Changes**: Add interactive parameter input, multiple scoring, time-resolved simulation, adjustable/isotropic sources, simulation time control, standard error computation, continuation runs.
 
 ### 2.0(.1)
 
 Updated 2.0 version released recently by Scott Prahl, but version was not bumped.
 
-- **Date**: 2024
-- **Author**: Scott Prahl
-- **Source**: <https://github.com/scottprahl/MCML>
-- **Changes**: Add Makefiles for modern systems, fix build issues, improve code readability
+- **Date**: 2024.
+- **Author**: Scott Prahl.
+- **Source**: <https://github.com/scottprahl/MCML>.
+- **Changes**: Add Makefiles for modern systems, fix build issues, improve code readability.
 
 ### 2.1.0
 
-- **Date**: 2025
-- **Author**: Maurits Lam
-- **Source**: <https://github.com/mhjlam/MCML>
-- **Changes**: Update to C17, modernize random number generator, improve memory management, update Makefiles for Windows systems
+- **Date**: 2025.
+- **Author**: Maurits Lam.
+- **Source**: <https://github.com/mhjlam/MCML>.
+- **Changes**: Update to C17, modernize random number generator, improve memory management, update Makefiles for Windows systems.
 
 ### 3.0.0
 
-- **Date**: 2025
-- **Author**: Maurits Lam
-- **Source**: <https://github.com/mhjlam/MCML>
-- **Changes**: Complete rewrite in C++20 with a modern C++ design, object-oriented architecture, improved performance and improved user interactivity
+- **Date**: 2025.
+- **Author**: Maurits Lam.
+- **Source**: <https://github.com/mhjlam/MCML>.
+- **Changes**: Complete rewrite in C++20 with a modern C++ design, object-oriented architecture, improved performance and improved user interactivity.
 
 ### Recommendations
 
@@ -78,13 +78,13 @@ Updated 2.0 version released recently by Scott Prahl, but version was not bumped
 
 #### A modern C compiler
 
-- **GCC**: <https://gcc.gnu.org> or <https://www.mingw-w64.org>
-- **Clang**: <https://llvm.org/>
-- **MSVC** (cl.exe): <https://visualstudio.microsoft.com/visual-cpp-build-tools>
+- **GCC**: <https://gcc.gnu.org> or <https://www.mingw-w64.org>.
+- **Clang**: <https://llvm.org/>.
+- **MSVC** (cl.exe): <https://visualstudio.microsoft.com/visual-cpp-build-tools>.
 
 #### Tooling
 
-- **GNU Make**: <https://www.gnu.org/software/make>
+- **GNU Make**: <https://www.gnu.org/software/make>.
 
 ### Build Commands
 
@@ -126,28 +126,28 @@ This repository also includes several standalone Monte Carlo projects that are r
 
 Simulates light transport in 3D tissue structures using a cube of voxels, where a voxel can represent one of several different tissue types. It creates detailed maps showing how light spreads through the tissue. Useful for medical applications like therapy planning and optical imaging. Includes MATLAB tools for setting up simulations and supports various light sources.
 
-- **Original Date**: 2010-2019
-- **Original Authors**: Steven Jacques, Ting Li, Scott Prahl
-- **Website**: <https://omlc.org/software/mc/mcxyz/index.html>
+- **Original Date**: 2010-2019.
+- **Original Authors**: Steven Jacques, Ting Li, Scott Prahl.
+- **Website**: <https://omlc.org/software/mc/mcxyz/index.html>.
 
 #### **2025 Modernization Update**
 
 The mcxyz implementation has been comprehensively modernized with significant performance and usability improvements:
 
-- **Modern Command-Line Interface**: Full argument parsing with help system, validation, and comprehensive options
-- **High-Performance Computing**: OpenMP multi-threading achieving **7.8x-10.2x performance speedup**
-- **C17 Standards Compliance**: Modern compiler optimizations, SIMD vectorization, aggressive performance flags
-- **Visual Progress Tracking**: Real-time progress bar with ETA calculations, completion percentage, and photon counts
-- **Professional Architecture**: Modular source code with proper separation of concerns and organized project structure
-- **Enhanced User Experience**: Comprehensive help system, usage examples, and detailed error reporting
-- **Full Backward Compatibility**: Identical physics simulation results validated against original implementation
+- **Modern Command-Line Interface**: Full argument parsing with help system, validation, and comprehensive options.
+- **High-Performance Computing**: OpenMP multi-threading achieving **7.8x-10.2x performance speedup**.
+- **C17 Standards Compliance**: Modern compiler optimizations, SIMD vectorization, aggressive performance flags.
+- **Visual Progress Tracking**: Real-time progress bar with ETA calculations, completion percentage, and photon counts.
+- **Professional Architecture**: Modular source code with proper separation of concerns and organized project structure.
+- **Enhanced User Experience**: Comprehensive help system, usage examples, and detailed error reporting.
+- **Full Backward Compatibility**: Identical physics simulation results validated against original implementation.
 
 **Key Performance Features:**
 
-- Multi-threaded execution with auto-detection of available CPU cores
-- Ultra-optimization mode with advanced compiler flags (-march=native, AVX2, fast-math)
-- Cache-aligned data structures and memory prefetching for optimal performance
-- Dynamic load balancing across threads for maximum efficiency
+- Multi-threaded execution with auto-detection of available CPU cores.
+- Ultra-optimization mode with advanced compiler flags (-march=native, AVX2, fast-math).
+- Cache-aligned data structures and memory prefetching for optimal performance.
+- Dynamic load balancing across threads for maximum efficiency.
 
 ### CUDA-based Monte Carlo
 
@@ -173,12 +173,16 @@ Both CUDAMC and CUDAMCML have been comprehensively modernized and refactored to 
 
 **Key improvements include:**
 
-- **Comprehensive documentation**: Every function now includes detailed headers explaining the physics, mathematics, and implementation approach
-- **Modern C++ practices**: Enhanced type safety, const correctness, RAII memory management, and improved error handling
-- **Modular architecture**: Clear separation of concerns with dedicated modules for I/O operations, memory management, random number generation, and physics transport
-- **Enhanced physics documentation**: Complete mathematical derivations for Fresnel reflection, Henyey-Greenberg scattering, absorption calculations, and other optical phenomena
-- **Improved code organization**: Logical grouping of functionality with consistent naming conventions and coding standards
-- **Better error handling**: Detailed error reporting with specific failure contexts and validation mechanisms
-- **Performance optimization**: Maintained original GPU performance while improving memory access patterns and atomic operations
+- **Comprehensive documentation**: Every function now includes detailed headers explaining the physics, mathematics, and implementation approach.
+- **Modern C++ practices**: Enhanced type safety, const correctness, RAII memory management, and improved error handling.
+- **Modular architecture**: Clear separation of concerns with dedicated modules for I/O operations, memory management, random number generation, and physics transport.
+- **Enhanced physics documentation**: Complete mathematical derivations for Fresnel reflection, Henyey-Greenberg scattering, absorption calculations, and other optical phenomena.
+- **Improved code organization**: Logical grouping of functionality with consistent naming conventions and coding standards.
+- **Better error handling**: Detailed error reporting with specific failure contexts and validation mechanisms.
+- **Performance optimization**: Maintained original GPU performance while improving memory access patterns and atomic operations.
 
 The modernized CUDA implementations maintain backward compatibility with existing input formats while providing significantly improved code readability and maintainability for future development and scientific research applications.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
