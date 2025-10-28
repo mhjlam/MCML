@@ -1,12 +1,15 @@
 # MCML
 
-Monte Carlo simulation of light transport in multi-layered turbid media.
+**Monte Carlo Simulation of Light Transport in Multi-Layered Turbid Media**
+
+> Maurits Lam  
+> 2025
 
 <p align="center">
-   <img src="media/mcml.gif" alt="Demo Animation" width="720"/>
+   <img src="media/mcml.gif" alt="Demo Animation" height="400"/>
 </p>
 
-## Version History
+## MCML Version History
 
 This project contains multiple versions of MCML (Monte Carlo Multi-Layered) and CONV (convolution program).
 
